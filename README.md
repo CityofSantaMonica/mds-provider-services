@@ -1,6 +1,6 @@
-# mds-provider
+# mds-provider-services
 
-Services for working with [MDS `provider`][provider] data.
+Services for working with [MDS `provider`][provider] data, built as runnable Docker containers.
 
 ## Local development
 
@@ -16,11 +16,14 @@ can be found in a container's `README.md`.
 
 | container | description |
 | --------- | ----------- |
-| [`client`](client/)  | [pgAdmin4][pgadmin] web client |
-| [`fake`](fake/)    | Generate fake MDS `provider` data for testing and development |
-| [`initdb`](initdb/)  | Initialize an MDS `provider` database |
-| [`load`](load/)  | Load from `provider` data files into a database |
-| [`server`](server/)  | Local [postgres][postgres] database server |
+| [`client`](client/) | [pgAdmin4][pgadmin] web client |
+| [`fake`](fake/) | Generate fake MDS `provider` data for testing and development |
+| [`initdb`](initdb/) | Initialize an MDS `provider` database |
+| [`load`](load/) | Load a database from `provider` data files |
+| [`pull`](pull/) | Pull data from `provider` API endpoints |
+| [`server`](server/) | Local [postgres][postgres] database server |
+
+## Getting Started
 
 ### 1. Create an `.env` file
 
