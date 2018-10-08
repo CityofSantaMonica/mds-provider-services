@@ -2,6 +2,9 @@
 
 Services for working with [MDS `provider`][provider] data, built as runnable Docker containers.
 
+These services are implemented via [`mds-provider`](https://github.com/CityofSantaMonica/mds-provider),
+a general-purpose Python library for working with MDS Provider data.
+
 ## Local development
 
 Requires both [Docker][docker] and [Docker Compose][compose].
