@@ -10,6 +10,7 @@ All fully customizable through extensive parameterization and configuration opti
 
 from acquire import acquire_data, provider_names
 import argparse
+import boto3
 from configparser import ConfigParser
 from datetime import datetime, timedelta, timezone
 import dateutil.parser
@@ -35,6 +36,13 @@ def setup_cli():
     """
     parser = argparse.ArgumentParser()
 
+    parser.add_argument(
+        "--aws_region",
+        type=str,
+        help="The AWS region to use for S3. Only applies when given with the --s3_bucket argument.\
+        Overrides the AWS_DEFAULT_REGION environment variable.\
+        If AWS_DEFAULT_REGION is not set, this parameter must be given."
+    )
     parser.add_argument(
         "--bbox",
         type=str,
@@ -113,6 +121,13 @@ def setup_cli():
         "--registry",
         type=str,
         help="Local file path to a providers.csv registry file to use instead of downloading from GitHub."
+    )
+    parser.add_argument(
+        "--s3_bucket",
+        type=str,
+        help="AWS S3 bucket to reference. When used with --output, a common key prefix is given to data files.\
+        AWS credentials must be configured; use AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY env vars or standard AWS\
+        credential configuration in e.g. ~/.aws/credentials."
     )
     parser.add_argument(
         "--source",
@@ -198,10 +213,13 @@ def parse_time_range(args):
         return end_time - timedelta(seconds=args.duration), end_time
 
 
-def output_data(output, payloads, record_type, start_time, end_time):
+def output_data(output, payloads, record_type, **kwargs):
     """
-    Write data to json files in the a directory.
+    Write data to one or more json files.
     """
+    start_time = kwargs["start_time"]
+    end_time = kwargs["end_time"]
+
     def _file_name(output, provider):
         """
         Generate a filename from the given parameters.
@@ -209,10 +227,31 @@ def output_data(output, payloads, record_type, start_time, end_time):
         fname = f"{provider}_{record_type}_{start_time.isoformat()}_{end_time.isoformat()}.json"
         return os.path.join(output, fname)
 
+    if "s3_bucket" in kwargs:
+        bucket = kwargs["s3_bucket"]
+        s3 = kwargs.get("s3_service", s3_service(region_name=kwargs.get("s3_region")))
+        print("In S3 bucket: {}".format(bucket))
+    else:
+        print("In {}".format(output))
+
     for provider, payload in payloads.items():
         fname = _file_name(output, provider.provider_name)
-        with open(fname, "w") as f:
-            json.dump(payload, f)
+        if "s3_bucket" in kwargs:
+            body = json.dumps(payload).encode()
+            s3.Object(bucket_name=s3bucket, key=fname).put(Body=body)
+        else:
+            with open(fname, "w") as f:
+                json.dump(payload, f)
+
+
+def s3_service(region_name=None):
+    """
+    Helper to return an s3 service using :region_name: or environment variables.
+    """
+    if region_name:
+        return boto3.resource("s3", region_name=region_name)
+
+    return boto3.resource("s3")
 
 
 def backfill(record_type, client, start_time, end_time, duration, **kwargs):
@@ -274,11 +313,24 @@ def ingest(record_type, **kwargs):
             del datasource[k]
 
     # output to files if needed
+    bucket = kwargs.get("s3_bucket")
+    if bucket:
+        try:
+            s3 = s3_service(region_name=kwargs.get("aws_region"))
+            kwargs["s3_bucket"] = bucket
+            kwargs["s3_service"] = s3
+        except Exception as ex:
+            print("You must configure AWS credentials to use S3.")
+            print("Set the environment variables: AWS_AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY.")
+            print("Or configure credentials in the default location (usually ~/.aws/credentials.")
+            print("AWS_DEFAULT_REGION environment variable or --aws_region parameter are also required.")
+            print(ex)
+            exit(1)
+
     output = kwargs.get("output")
-    if output and os.path.exists(output):
-        print(f"Writing data files to {output}")
-        start_time, end_time = kwargs.get("start_time"), kwargs.get("end_time")
-        output_data(output, datasource, record_type, start_time, end_time)
+    if output or bucket:
+        print(f"Writing data files.")
+        output_data(output, datasource, record_type, **kwargs)
 
     loading = not kwargs.get("no_load")
     if loading and len(datasource) > 0:

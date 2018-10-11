@@ -65,6 +65,9 @@ services:
       - MDS_DB
       - MDS_USER
       - MDS_PASSWORD
+      - AWS_ACCESS_KEY_ID
+      - AWS_SECRET_ACCESS_KEY
+      - AWS_DEFAULT_REGION
     ports:
       - "${NB_HOST_PORT}:8888"
     user: root

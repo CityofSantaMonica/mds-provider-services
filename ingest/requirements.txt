@@ -1,2 +1,3 @@
+boto3
 -e git+https://github.com/CityofSantaMonica/mds-provider@master#egg=mds_provider
 python-dateutil

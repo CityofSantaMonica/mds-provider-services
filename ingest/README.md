@@ -53,6 +53,10 @@ Results in the following backfill requests:
 
 Backfills ignore the `no_paging` flag, always requesting all pages.
 
+#### `--aws_region REGION`
+
+The AWS region to use for S3. Only applies when given with the `--s3_bucket` argument. Overrides the `AWS_DEFAULT_REGION` environment variable. If `AWS_DEFAULT_REGION` is not set, this parameter must be given.
+
 ### `--bbox BBOX`
 
 The bounding-box with which to restrict the results of this request.
@@ -114,6 +118,12 @@ One or more `provider_name` to query. The default is to query all configured pro
 
 Git branch name, commit hash, or tag at which to reference MDS. The default is `master`.
 
+#### `--s3_bucket BUCKET`
+
+Name of an AWS S3 bucket to store data files in. When used with `--output`, a common key prefix is given to data files.
+
+AWS credentials must be configured; set the `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` environment variables or use standard AWS credential configuration in e.g. `~/.aws/credentials`.
+
 ### `--source SOURCE [SOURCE ...]`
 
 One or more paths to (directories containing) MDS Provider JSON file(s). These will be read instead of requesting from Provider APIs.
@@ -149,3 +159,19 @@ Flag indicating Trips should be requested.
 ### `--vehicle_id VEHICLE_ID`
 
 The `vehicle_id` to obtain results for. Only applies to `--trips`.
+
+## Working with Amazon S3
+
+To read and write data files from S3 buckets, configure your environment with the following variables:
+
+```
+AWS_ACCESS_KEY_ID=
+AWS_SECRET_ACCESS_KEY=
+AWS_DEFAULT_REGION=
+```
+
+Then pass the bucket name as one of the options:
+
+```bash
+--s3_bucket my-bucket
+```
