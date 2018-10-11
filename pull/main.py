@@ -196,6 +196,7 @@ if __name__ == "__main__":
 
     # determine the MDS version to reference
     ref = args.ref or config["DEFAULT"]["ref"] or "master"
+    auth_type = config["DEFAULT"]["auth_type"]
     print(f"Referencing MDS @ {ref}")
 
     # prepare output dir
