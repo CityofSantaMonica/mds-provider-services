@@ -216,6 +216,7 @@ def data_validation(data, validate_method, *args, **kwargs):
             except Exception as ex:
                 print(ex)
 
+
 if __name__ == "__main__":
     user, password, db_name, host, port = parse_db_env()
     engine = db.data_engine(user, password, db_name, host, port)
@@ -277,9 +278,10 @@ if __name__ == "__main__":
             data_validation(status_changes, validate_status_changes, ref=ref)
 
         if not args.no_load:
-            print(f"Loading Status Changes into database.")
+            print("Loading Status Changes into database.")
+            db.load_status_changes(status_changes.values(), engine)
 
-        print(f"Status Changes ingestion complete.")
+        print("Status Changes ingestion complete.")
 
     # download Trips
     if args.trips:
@@ -298,7 +300,8 @@ if __name__ == "__main__":
             data_validation(trips, validate_trips, ref=ref)
 
         if not args.no_load:
-            print(f"Loading Trips into database.")
+            print("Loading Trips into database.")
+            db.load_trips(trips.values(), engine)
 
-        print(f"Trips ingestion complete.")
+        print("Trips ingestion complete.")
 
