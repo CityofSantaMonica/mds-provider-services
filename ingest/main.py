@@ -207,14 +207,14 @@ def filter_providers(providers, names):
 
     return [p for p in providers if p.provider_name.lower() in names]
 
-def do_validation(data, validate_method, *args, **kwargs):
-    print(data)
-    # for provider, payload in data:
-    #     try:
-    #         print("Validating data from", provider)
-    #         validate_method(payload, *args, **kwargs)
-    #     except Exception as ex:
-    #        print(ex)
+def data_validation(data, validate_method, *args, **kwargs):
+    for provider, pages in data.items():
+        print(provider.provider_name)
+        for payload in pages:
+            try:
+                validate_method(payload, *args, **kwargs)
+            except Exception as ex:
+                print(ex)
 
 if __name__ == "__main__":
     user, password, db_name, host, port = parse_db_env()
@@ -274,7 +274,7 @@ if __name__ == "__main__":
         if args.no_validate:
             print("Skipping data validation.")
         else:
-            do_validation(status_changes, validate_status_changes, ref=ref)
+            data_validation(status_changes, validate_status_changes, ref=ref)
 
         if not args.no_load:
             print(f"Loading Status Changes into database.")
@@ -295,7 +295,7 @@ if __name__ == "__main__":
         if args.no_validate:
             print("Skipping data validation.")
         else:
-            do_validation(trips, validate_trips, ref=ref)
+            data_validation(trips, validate_trips, ref=ref)
 
         if not args.no_load:
             print(f"Loading Trips into database.")
