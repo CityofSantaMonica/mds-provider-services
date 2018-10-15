@@ -250,6 +250,12 @@ if __name__ == "__main__":
     providers = [p.configure(config, use_id=True) for p in filter_providers(registry, args.providers)]
     print(f"Requesting from providers: {provider_names(providers)}")
 
+    # parse any headers from the config to a dict
+    for p in providers:
+        headers = getattr(p, "headers", None)
+        if headers and isinstance(headers, str):
+            p.headers = json.loads(headers)
+
     # initialize an API client for these providers and configuration
     client = ProviderClient(providers)
     paging = not args.no_paging
