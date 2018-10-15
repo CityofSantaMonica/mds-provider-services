@@ -1,0 +1,11 @@
+@hourly bin/hourly.sh --providers bird --status_changes
+@hourly bin/hourly.sh --providers bird --trips
+
+@hourly bin/hourly.sh --providers jump --status_changes
+@hourly bin/hourly.sh --providers jump --trips
+
+@hourly bin/hourly.sh --providers lime --status_changes
+@hourly bin/hourly.sh --providers lime --trips
+
+@hourly bin/hourly.sh --providers lyft --status_changes
+@hourly bin/hourly.sh --providers lyft --trips
