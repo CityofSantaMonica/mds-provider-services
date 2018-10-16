@@ -10,8 +10,8 @@ CREATE TABLE trips (
     trip_distance INT NOT NULL,
     route JSON NOT NULL,
     accuracy INT NOT NULL,
-    start_time timestamp NOT NULL,
-    end_time timestamp NOT NULL,
+    start_time timestamptz NOT NULL,
+    end_time timestamptz NOT NULL,
     parking_verification_url TEXT,
     standard_cost INT,
     actual_cost INT

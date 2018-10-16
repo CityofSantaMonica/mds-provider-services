@@ -7,7 +7,7 @@ CREATE TABLE status_changes (
     propulsion_type propulsion_types[] NOT NULL,
     event_type event_types NOT NULL,
     event_type_reason event_type_reasons NOT NULL,
-    event_time timestamp NOT NULL,
+    event_time timestamptz NOT NULL,
     event_location JSON NOT NULL,
     battery_pct FLOAT,
     associated_trips UUID[]
