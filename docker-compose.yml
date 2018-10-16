@@ -28,6 +28,7 @@ services:
     image: mds_provider_initdb
     container_name: mds_provider_initdb
     depends_on:
+      - client
       - server
     environment:
       - POSTGRES_HOSTNAME

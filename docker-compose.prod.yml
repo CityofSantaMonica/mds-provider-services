@@ -1,0 +1,27 @@
+version: "3"
+services:
+  initdb:
+    build: ./initdb
+    image: mds_provider_initdb
+    container_name: mds_provider_initdb
+    environment:
+      - POSTGRES_HOSTNAME
+      - POSTGRES_DB
+      - POSTGRES_USER
+      - POSTGRES_PASSWORD
+      - MDS_DB
+      - MDS_USER
+      - MDS_PASSWORD
+  ingest:
+    build: ./ingest
+    image: mds_provider_ingest
+    container_name: mds_provider_ingest
+    environment:
+      - POSTGRES_HOSTNAME
+      - POSTGRES_HOST_PORT
+      - MDS_DB
+      - MDS_USER
+      - MDS_PASSWORD
+    ports:
+      - "${NB_HOST_PORT}:8888"
+    user: root
