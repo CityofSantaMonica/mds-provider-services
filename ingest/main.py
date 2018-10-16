@@ -7,7 +7,7 @@ import mds
 from mds.api import ProviderClient
 from mds.db import ProviderDataLoader
 import mds.providers
-from mds.validate import validate_status_changes, validate_trips
+from mds.schema import ProviderSchema
 import os
 import time
 from uuid import UUID
@@ -207,7 +207,7 @@ def filter_providers(providers, names):
 
     return [p for p in providers if p.provider_name.lower() in names]
 
-def data_validation(data, validate_method, *args, **kwargs):
+def data_validation(data, schema):
     """
     Helper to validate data retrieved from APIs.
     """
@@ -217,7 +217,7 @@ def data_validation(data, validate_method, *args, **kwargs):
         print("Validating data from", provider.provider_name)
         for payload in pages:
             try:
-                validate_method(payload, *args, **kwargs)
+                schema.validate(payload)
             except Exception as ex:
                 valid = False
                 print("Validation error:")
@@ -241,7 +241,8 @@ def ingest_status_changes(cli, client, db, start_time, end_time, paging, validat
 
     if validating:
         print("Validating Status Changes")
-        valid = data_validation(sc, validate_status_changes, ref=ref)
+        schema = ProviderSchema.StatusChanges(ref=ref)
+        valid = data_validation(sc, schema)
     else:
         print("Skipping data validation")
         valid = True
@@ -272,7 +273,8 @@ def ingest_trips(cli, client, db, start_time, end_time, paging, validating, load
 
     if validating:
         print("Validating Trips")
-        valid = data_validation(trips, validate_trips, ref=ref)
+        schema = ProviderSchema.Trips(ref=ref)
+        valid = data_validation(trips, schema)
     else:
         print("Skipping Trips validation.")
         valid = True
