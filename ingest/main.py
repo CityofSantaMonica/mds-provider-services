@@ -4,10 +4,10 @@ from datetime import datetime, timedelta
 import dateutil.parser
 import json
 import mds
-from mds.api.client import ProviderClient
-from mds.db import db
+from mds.api import ProviderClient
+from mds.db import ProviderDataLoader
 import mds.providers
-from mds.validate import validate_status_changes, validate_trips, validate_files
+from mds.validate import validate_status_changes, validate_trips
 import os
 import time
 from uuid import UUID
@@ -208,18 +208,86 @@ def filter_providers(providers, names):
     return [p for p in providers if p.provider_name.lower() in names]
 
 def data_validation(data, validate_method, *args, **kwargs):
+    """
+    Helper to validate data retrieved from APIs.
+    """
+    valid = True
+
     for provider, pages in data.items():
-        print(provider.provider_name)
+        print("Validating data from", provider.provider_name)
         for payload in pages:
             try:
                 validate_method(payload, *args, **kwargs)
             except Exception as ex:
+                valid = False
+                print("Validation error:")
                 print(ex)
+
+    return valid
+
+def ingest_status_changes(cli, client, db, start_time, end_time, paging, validating, loading):
+    """
+    Run the ingestion flow for Status Changes, using the configured :client: and the given params.
+    """
+    print("Requesting Status Changes")
+    print(f"Time range: {start_time.isoformat()} to {end_time.isoformat()}")
+
+    sc = client.get_status_changes(
+        start_time=start_time,
+        end_time=end_time,
+        bbox=cli.bbox,
+        paging=paging
+    )
+
+    if validating:
+        print("Validating Status Changes")
+        valid = data_validation(sc, validate_status_changes, ref=ref)
+    else:
+        print("Skipping data validation")
+        valid = True
+
+    if loading and valid:
+        print("Loading Status Changes into database")
+        for provider, payload in sc.items():
+            print("Loading Status Changes for", provider.provider_name)
+            db.load_status_changes(payload)
+
+    print("Status Changes ingestion complete")
+
+def ingest_trips(cli, client, db, start_time, end_time, paging, validating, loading):
+    """
+    Run the ingestion flow for Trips, using the configured :client: and the given params.
+    """
+    print("Requesting Trips")
+    print(f"Time range: {start_time.timestamp()} to {end_time.timestamp()}")
+
+    trips = client.get_trips(
+        device_id=cli.device_id,
+        vehicle_id=cli.vehicle_id,
+        start_time=start_time,
+        end_time=end_time,
+        bbox=cli.bbox,
+        paging=paging
+    )
+
+    if validating:
+        print("Validating Trips")
+        valid = data_validation(trips, validate_trips, ref=ref)
+    else:
+        print("Skipping Trips validation.")
+        valid = True
+
+    if loading and valid:
+        print("Loading Trips into database")
+        for provider, payload in trips.items():
+            print("Loading Trips for", provider.provider_name)
+            db.load_trips(payload)
+
+    print("Trips ingestion complete")
 
 
 if __name__ == "__main__":
-    user, password, db_name, host, port = parse_db_env()
-    engine = db.data_engine(user, password, db_name, host, port)
+    db = ProviderDataLoader(*parse_db_env())
 
     arg_parser, args = setup_cli()
 
@@ -260,48 +328,12 @@ if __name__ == "__main__":
     # initialize an API client for these providers and configuration
     client = ProviderClient(providers)
     paging = not args.no_paging
+    validating = not args.no_validate
+    loading = not args.no_load
 
-    print(f"Time range: {start_time.isoformat()} to {end_time.isoformat()}")
-
-    # download Status Changes
     if args.status_changes:
-        print("Requesting Status Changes")
+        ingest_status_changes(args, client, db, start_time, end_time, paging, validating, loading)
 
-        status_changes = client.get_status_changes(providers=providers,
-                                                   start_time=start_time,
-                                                   end_time=end_time,
-                                                   bbox=args.bbox,
-                                                   page=paging)
-        if args.no_validate:
-            print("Skipping data validation.")
-        else:
-            data_validation(status_changes, validate_status_changes, ref=ref)
-
-        if not args.no_load:
-            print("Loading Status Changes into database.")
-            db.load_status_changes(status_changes.values(), engine)
-
-        print("Status Changes ingestion complete.")
-
-    # download Trips
     if args.trips:
-        print("Requesting Trips")
-
-        trips = client.get_trips(providers=providers,
-                                 device_id=args.device_id,
-                                 vehicle_id=args.vehicle_id,
-                                 start_time=start_time,
-                                 end_time=end_time,
-                                 bbox=args.bbox,
-                                 page=paging)
-        if args.no_validate:
-            print("Skipping data validation.")
-        else:
-            data_validation(trips, validate_trips, ref=ref)
-
-        if not args.no_load:
-            print("Loading Trips into database.")
-            db.load_trips(trips.values(), engine)
-
-        print("Trips ingestion complete.")
+        ingest_trips(args, client, db, start_time, end_time, paging, validating, loading)
 
