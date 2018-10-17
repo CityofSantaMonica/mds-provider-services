@@ -93,6 +93,11 @@ def setup_cli():
         At least one of end_time or start_time is required."
     )
     parser.add_argument(
+        "--no_load",
+        action="store_true",
+        help="Do not attempt to load the returned data."
+    )
+    parser.add_argument(
         "--no_paging",
         action="store_true",
         help="Flag indicating paging through the response should *not* occur.\
@@ -101,7 +106,7 @@ def setup_cli():
     parser.add_argument(
         "--no_validate",
         action="store_true",
-        help="Do not perform JSON Schema validation against the input file(s)"
+        help="Do not perform JSON Schema validation against the returned data."
     )
     parser.add_argument(
         "--providers",
@@ -132,11 +137,6 @@ def setup_cli():
         "--trips",
         action="store_true",
         help="Flag indicating Trips should be requested."
-    )
-    parser.add_argument(
-        "--no_load",
-        action="store_true",
-        help="Do not attempt to load the returned data."
     )
     parser.add_argument(
         "--vehicle_id",
