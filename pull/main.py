@@ -169,7 +169,7 @@ def file_name(output, provider, datatype, start_time, end_time):
 
 def dump_payloads(output, payloads, datatype, start_time, end_time):
     """
-    Write a the :payloads: mapping (provider name => data payload) to json files in :output:.
+    Write a :payloads: dict (provider name => data payload(s)) to json files in :output:.
     """
     for provider, payload in payloads.items():
         file = file_name(output, provider.provider_name, datatype, start_time, end_time)

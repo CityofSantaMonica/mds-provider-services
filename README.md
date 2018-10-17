@@ -21,7 +21,7 @@ can be found in a container's `README.md`.
 | --------- | ----------- |
 | [`client`](client/) | [pgAdmin4][pgadmin] web client |
 | [`fake`](fake/) | Generate fake MDS `provider` data for testing and development |
-| [`initdb`](initdb/) | Initialize an MDS `provider` database |
+| [`initdb`](initdb/) | Initialize a MDS `provider` database |
 | [`load`](load/) | Load a database from `provider` data files |
 | [`pull`](pull/) | Pull data from `provider` API endpoints |
 | [`server`](server/) | Local [postgres][postgres] database server |

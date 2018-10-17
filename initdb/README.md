@@ -1,6 +1,6 @@
 # initdb
 
-Initialize an MDS `provider` database in a Postgres database server.
+Initialize a MDS `provider` database in a Postgres database server.
 
 ## Configuration
 
