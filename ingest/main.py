@@ -7,7 +7,7 @@ import mds
 from mds.api import ProviderClient
 from mds.db import ProviderDataLoader
 import mds.providers
-from mds.schema import ProviderSchema
+from mds.schema.validation import ProviderDataValidator
 import os
 import time
 from uuid import UUID
@@ -207,23 +207,22 @@ def filter_providers(providers, names):
 
     return [p for p in providers if p.provider_name.lower() in names]
 
-def data_validation(data, schema):
+def data_validation(data, validator):
     """
     Helper to validate data retrieved from APIs.
     """
-    valid = True
-
     for provider, pages in data.items():
         print("Validating data from", provider.provider_name)
-        for payload in pages:
-            try:
-                schema.validate(payload)
-            except Exception as ex:
-                valid = False
-                print("Validation error:")
-                print(ex)
 
-    return valid
+        # validate each page of data for this provider
+        valid = True
+        for payload in pages:
+            for error in validator.validate(payload):
+                print(error)
+                valid = False
+
+        # return a validation result per provider
+        yield valid
 
 def ingest_status_changes(cli, client, db, start_time, end_time, paging, validating, loading):
     """
@@ -241,14 +240,13 @@ def ingest_status_changes(cli, client, db, start_time, end_time, paging, validat
 
     if validating:
         print("Validating Status Changes")
-        schema = ProviderSchema.StatusChanges(ref=ref)
-        valid = data_validation(sc, schema)
+        validator = ProviderDataValidator.StatusChanges(ref=ref)
+        valid = all(data_validation(sc, validator))
     else:
         print("Skipping data validation")
         valid = True
 
     if loading and valid:
-        print("Loading Status Changes into database")
         for provider, payload in sc.items():
             print("Loading Status Changes for", provider.provider_name)
             db.load_status_changes(payload)
@@ -273,14 +271,13 @@ def ingest_trips(cli, client, db, start_time, end_time, paging, validating, load
 
     if validating:
         print("Validating Trips")
-        schema = ProviderSchema.Trips(ref=ref)
-        valid = data_validation(trips, schema)
+        validator = ProviderDataValidator.Trips(ref=ref)
+        valid = all(data_validation(trips, validator))
     else:
         print("Skipping Trips validation.")
         valid = True
 
     if loading and valid:
-        print("Loading Trips into database")
         for provider, payload in trips.items():
             print("Loading Trips for", provider.provider_name)
             db.load_trips(payload)
