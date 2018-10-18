@@ -1,5 +1,6 @@
 *.env
 *.ipynb*
+docker-compose.yml
 
 .vscode/
 __pycache__/
