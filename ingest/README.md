@@ -86,6 +86,14 @@ The default is to query all configured providers.
 
 Git branch name, commit hash, or tag at which to reference MDS. The default is `master`.
 
+#### `--source SOURCE [SOURCE ...]`
+
+One or more paths to (directories containing) MDS Provider JSON file(s). These will be read instead of requesting from Provider APIs.
+
+The `--status_changes` and `--trips` flags will be respected if possible from the source file names.
+
+Note that `--bbox`, `--end_time`, and other related querystring paramters don't apply for `--source`.
+
 #### `--start_time START_TIME`
 
 The beginning of the time query range for this request. Should be either int Unix seconds or ISO-8061 datetime format.

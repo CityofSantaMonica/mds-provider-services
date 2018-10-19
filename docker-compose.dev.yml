@@ -53,21 +53,6 @@ services:
     user: root
     volumes:
       - data:/home/${NB_USER}/work/mds/data
-  load:
-    build: ./load
-    image: mds_provider_load
-    container_name: mds_provider_load
-    environment:
-      - POSTGRES_HOSTNAME
-      - POSTGRES_HOST_PORT
-      - MDS_DB
-      - MDS_USER
-      - MDS_PASSWORD
-    ports:
-      - "${NB_LOAD_HOST_PORT}:8888"
-    user: root
-    volumes:
-      - data:/home/${NB_USER}/work/mds/data
   server:
     build: ./server
     image: mds_provider_server

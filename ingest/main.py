@@ -1,3 +1,13 @@
+"""
+Command-line interface implementing various MDS Provider data ingestion flows, including:
+
+  - request data from one or more Provider endpoints
+  - validate data against any version of the schema
+  - save data to the filesystem or load it into Postgres
+
+All fully customizable through extensive parameterization and configuration options.
+"""
+
 import argparse
 from configparser import ConfigParser
 from datetime import timedelta
@@ -124,6 +134,12 @@ def setup_cli():
         type=str,
         help="Git branch name, commit hash, or tag at which to reference MDS.\
         The default is `master`."
+    )
+    parser.add_argument(
+        "--source",
+        type=str,
+        nargs="+",
+        help="One or more paths to (directories containing) MDS Provider JSON file(s)"
     )
     parser.add_argument(
         "--start_time",
@@ -257,74 +273,94 @@ def dump_payloads(output, payloads, datatype, start_time, end_time):
             json.dump(payload, f)
 
 
-def ingest_status_changes(cli, client, db, start_time, end_time, paging, validating, loading):
+def expand_files(sources):
     """
-    Run the ingestion flow for Status Changes, using the configured :client: and the given params.
+    Return a list of all the files from a potentially mixed list of files and directories.
+    Expands into the directories and includes their files in the output, as well as any input files.
     """
-    print("Requesting Status Changes")
-    print(f"Time range: {start_time.isoformat()} to {end_time.isoformat()}")
+    # separate
+    files = [f for f in sources if os.path.isfile(f)]
+    dirs = [d for d in sources if os.path.isdir(d)]
 
-    sc = client.get_status_changes(
-        start_time=start_time,
-        end_time=end_time,
-        bbox=cli.bbox,
-        paging=paging
-    )
+    # expand and extend
+    expanded = [f for ls in [os.listdir(d) for d in dirs] for f in ls]
+    files.extend(expanded)
 
-    if cli.output and os.path.exists(cli.output):
-        print(f"Writing data files to {cli.output}")
-        dump_payloads(cli.output, sc, mds.STATUS_CHANGES, start_time, end_time)
+    return files
 
+
+def ingest(record_type, cli, client, db, start_time, end_time, paging, validating, loading):
+    """
+    Run the ingestion flow for the given :record_type:.
+    """
+    # acquire the data
+    if cli.source:
+        datasource = [f for f in expand_files(
+            cli.source) if f.contains(record_type)]
+
+        print(f"Loading from {datasource}")
+    else:
+        print(f"Requesting {record_type}")
+        print(
+            f"Time range: {start_time.isoformat()} to {end_time.isoformat()}")
+
+        if record_type == mds.STATUS_CHANGES:
+            datasource = client.get_status_changes(
+                start_time=start_time,
+                end_time=end_time,
+                bbox=cli.bbox,
+                paging=paging
+            )
+        elif record_type == mds.TRIPS:
+            datasource = client.get_trips(
+                device_id=cli.device_id,
+                vehicle_id=cli.vehicle_id,
+                start_time=start_time,
+                end_time=end_time,
+                bbox=cli.bbox,
+                paging=paging
+            )
+
+        if cli.output and os.path.exists(cli.output):
+            print(f"Writing data files to {cli.output}")
+            dump_payloads(cli.output, datasource,
+                          record_type, start_time, end_time)
+
+    # do data validation
     if validating:
-        print("Validating Status Changes")
-        validator = ProviderDataValidator.StatusChanges(ref=ref)
-        valid = all(data_validation(sc, validator))
+        print(f"Validating {record_type}")
+
+        if record_type == mds.STATUS_CHANGES:
+            validator = ProviderDataValidator.StatusChanges(ref=ref)
+        elif record_type == mds.TRIPS:
+            validator = ProviderDataValidator.Trips(ref=ref)
+
+        valid = all(data_validation(datasource, validator))
+        print(f"Validation {'succeeded' if valid else 'failed'}")
     else:
         print("Skipping data validation")
         valid = True
 
+    # do data loading
     if loading and valid:
-        for provider, payload in sc.items():
-            print("Loading Status Changes for", provider.provider_name)
-            db.load_status_changes(payload)
+        for data in datasource:
+            if isinstance(data, str):
+                # this is a file path
+                print(f"Loading {record_type} from", data)
+                if record_type == mds.STATUS_CHANGES:
+                    db.load_status_changes(data)
+                elif record_type == mds.TRIPS:
+                    db.load_trips(data)
 
-    print("Status Changes complete")
+            elif isinstance(data, mds.providers.Provider):
+                # this is a dict payload from a Provider
+                print(f"Loading {record_type} from", data.provider_name)
+                if record_type == mds.STATUS_CHANGES:
+                    db.load_status_changes(datasource[data])
+                elif record_type == mds.TRIPS:
+                    db.load_trips(datasource[data])
 
-
-def ingest_trips(cli, client, db, start_time, end_time, paging, validating, loading):
-    """
-    Run the ingestion flow for Trips, using the configured :client: and the given params.
-    """
-    print("Requesting Trips")
-    print(f"Time range: {start_time.timestamp()} to {end_time.timestamp()}")
-
-    trips = client.get_trips(
-        device_id=cli.device_id,
-        vehicle_id=cli.vehicle_id,
-        start_time=start_time,
-        end_time=end_time,
-        bbox=cli.bbox,
-        paging=paging
-    )
-
-    if cli.output and os.path.exists(cli.output):
-        print(f"Writing data files to {cli.output}")
-        dump_payloads(cli.output, trips, mds.TRIPS, start_time, end_time)
-
-    if validating:
-        print("Validating Trips")
-        validator = ProviderDataValidator.Trips(ref=ref)
-        valid = all(data_validation(trips, validator))
-    else:
-        print("Skipping Trips validation.")
-        valid = True
-
-    if loading and valid:
-        for provider, payload in trips.items():
-            print("Loading Trips for", provider.provider_name)
-            db.load_trips(payload)
-
-    print("Trips complete")
+    print(f"{record_type} complete")
 
 
 if __name__ == "__main__":
@@ -374,9 +410,9 @@ if __name__ == "__main__":
     loading = not args.no_load
 
     if args.status_changes:
-        ingest_status_changes(args, client, db, start_time,
-                              end_time, paging, validating, loading)
+        ingest(mds.STATUS_CHANGES, args, client, db, start_time,
+               end_time, paging, validating, loading)
 
     if args.trips:
-        ingest_trips(args, client, db, start_time,
-                     end_time, paging, validating, loading)
+        ingest(mds.TRIPS, args, client, db, start_time,
+               end_time, paging, validating, loading)
