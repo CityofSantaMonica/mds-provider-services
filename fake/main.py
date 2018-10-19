@@ -2,7 +2,6 @@ import argparse
 from datetime import datetime, timedelta
 import json
 import math
-import mds
 from mds.fake import geometry
 from mds.fake.data import random_string
 from mds.fake.provider import ProviderDataGenerator
@@ -67,8 +66,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--propulsion_types",
         type=str,
-        help="A list of propulsion_types to use for the generated data\
-            e.g. '{}'".format("', '".join(mds.PROPULSION_TYPES))
+        help="A list of propulsion_types to use for the generated data"
     )
     parser.add_argument(
         "--provider",
@@ -93,8 +91,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--vehicle_types",
         type=str,
-        help="A list of vehicle_types to use for the generated data:\
-            e.g. '{}'".format("', '".join(mds.VEHICLE_TYPES))
+        help="A list of vehicle_types to use for the generated data"
     )
 
     args = parser.parse_args()
@@ -117,18 +114,23 @@ if __name__ == "__main__":
     date_end = date_start
 
     if date_format == "unix":
-        date_start = datetime.fromtimestamp(args.start) if args.start else date_start
+        date_start = datetime.fromtimestamp(
+            args.start) if args.start else date_start
         date_end = datetime.fromtimestamp(args.end) if args.end else date_end
     elif date_format == "iso8601":
-        date_start = datetime.fromisoformat(args.start) if args.start else date_start
+        date_start = datetime.fromisoformat(
+            args.start) if args.start else date_start
         date_end = datetime.fromisoformat(args.end) if args.end else date_end
     else:
-        date_start = datetime.strptime(args.start, date_format) if args.start else date_start
-        date_end = datetime.strptime(args.end, date_format) if args.end else date_end
+        date_start = datetime.strptime(
+            args.start, date_format) if args.start else date_start
+        date_end = datetime.strptime(
+            args.end, date_format) if args.end else date_end
 
     hour_open = 7 if args.open is None else args.open
     hour_closed = 19 if args.close is None else args.close
-    inactivity = random.uniform(0, 0.05) if args.inactivity is None else args.inactivity
+    inactivity = random.uniform(
+        0, 0.05) if args.inactivity is None else args.inactivity
 
     # convert speed to meters/second
     ONE_MPH_METERSSEC = 0.44704
@@ -146,13 +148,14 @@ if __name__ == "__main__":
     print("Parsing boundary file: {}".format(boundary_file))
     t1 = time.time()
     boundary = parse_boundary(boundary_file, downloads=outputdir)
-    print("Valid boundary: {} ({} s)".format(boundary.is_valid, time.time() - t1))
+    print("Valid boundary: {} ({} s)".format(
+        boundary.is_valid, time.time() - t1))
 
     gen = ProviderDataGenerator(
-            boundary=boundary,
-            speed=speed,
-            vehicle_types=args.vehicle_types,
-            propulsion_types=args.propulsion_types)
+        boundary=boundary,
+        speed=speed,
+        vehicle_types=args.vehicle_types,
+        propulsion_types=args.propulsion_types)
 
     print("Generating {} devices for '{}'".format(N, provider_name))
     t1 = time.time()
@@ -161,19 +164,22 @@ if __name__ == "__main__":
 
     status_changes, trips = [], []
 
-    print("Generating data from {} to {}".format(encoder.encode(date_start), encoder.encode(date_end)))
+    print("Generating data from {} to {}".format(
+        encoder.encode(date_start), encoder.encode(date_end)))
     t1 = time.time()
     date = date_start
     while(date <= date_end):
         formatted_date = encoder.encode(date)
-        print("Starting day: {} (open hours {} to {})".format(formatted_date, hour_open, hour_closed))
+        print("Starting day: {} (open hours {} to {})".format(
+            formatted_date, hour_open, hour_closed))
         t2 = time.time()
         day_status_changes, day_trips = \
             gen.service_day(devices, date, hour_open, hour_closed, inactivity)
         status_changes.extend(day_status_changes)
         trips.extend(day_trips)
         date = date + timedelta(days=1)
-        print("Finished day: {} ({} s)".format(formatted_date, time.time() - t2))
+        print("Finished day: {} ({} s)".format(
+            formatted_date, time.time() - t2))
     print("Finished generating data ({} s)".format(time.time() - t1))
 
     if len(status_changes) > 0 or len(trips) > 0:
@@ -199,4 +205,3 @@ if __name__ == "__main__":
         print("Generating data files complete ({} s)".format(time.time() - t1))
 
     print("Data generation complete ({} s)".format(time.time() - T0))
-

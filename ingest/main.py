@@ -50,6 +50,7 @@ def parse_db_env():
 
     return user, password, db_name, host, port
 
+
 def setup_cli():
     """
     Create the cli argument interface, and parses incoming args.
@@ -147,6 +148,25 @@ def setup_cli():
 
     return parser, parser.parse_args()
 
+
+def parse_config(path):
+    """
+    Helper to parse a config file at :path:, which defaults to `.config`.
+    """
+    path = path or os.path.join(os.getcwd(), ".config")
+
+    if not os.path.exists(path):
+        print("Could not find config file: ", path)
+        exit(1)
+
+    print("Reading config file:", path)
+
+    config = ConfigParser()
+    config.read(path)
+
+    return config
+
+
 def parse_time_range(args):
     """
     Returns a valid range tuple (start_time, end_time) given an object with some mix of:
@@ -175,23 +195,13 @@ def parse_time_range(args):
         end_time = _to_datetime(args.end_time)
         return end_time - timedelta(seconds=duration), end_time
 
-def parse_config(path):
-    """
-    Helper to parse a config file at :path:, which defaults to `.config`.
-    """
-    path = path or os.path.join(os.getcwd(), ".config")
-    print("Reading config file:", path)
-
-    config = ConfigParser()
-    config.read(path)
-
-    return config
 
 def provider_names(providers):
     """
     Returns the names of the :providers:, separated by commas.
     """
     return ", ".join([p.provider_name for p in providers])
+
 
 def filter_providers(providers, names):
     """
@@ -206,6 +216,7 @@ def filter_providers(providers, names):
     names = [n.lower() for n in names]
 
     return [p for p in providers if p.provider_name.lower() in names]
+
 
 def data_validation(data, validator):
     """
@@ -223,6 +234,7 @@ def data_validation(data, validator):
 
         # return a validation result per provider
         yield valid
+
 
 def ingest_status_changes(cli, client, db, start_time, end_time, paging, validating, loading):
     """
@@ -251,7 +263,8 @@ def ingest_status_changes(cli, client, db, start_time, end_time, paging, validat
             print("Loading Status Changes for", provider.provider_name)
             db.load_status_changes(payload)
 
-    print("Status Changes ingestion complete")
+    print("Status Changes complete")
+
 
 def ingest_trips(cli, client, db, start_time, end_time, paging, validating, loading):
     """
@@ -282,7 +295,7 @@ def ingest_trips(cli, client, db, start_time, end_time, paging, validating, load
             print("Loading Trips for", provider.provider_name)
             db.load_trips(payload)
 
-    print("Trips ingestion complete")
+    print("Trips complete")
 
 
 if __name__ == "__main__":
@@ -315,7 +328,8 @@ if __name__ == "__main__":
     print(f"Acquired registry: {provider_names(registry)}")
 
     # filter the registry with cli args, and configure the providers that will be used
-    providers = [p.configure(config, use_id=True) for p in filter_providers(registry, args.providers)]
+    providers = [p.configure(config, use_id=True)
+                 for p in filter_providers(registry, args.providers)]
     print(f"Requesting from providers: {provider_names(providers)}")
 
     # parse any headers from the config to a dict
@@ -331,8 +345,9 @@ if __name__ == "__main__":
     loading = not args.no_load
 
     if args.status_changes:
-        ingest_status_changes(args, client, db, start_time, end_time, paging, validating, loading)
+        ingest_status_changes(args, client, db, start_time,
+                              end_time, paging, validating, loading)
 
     if args.trips:
-        ingest_trips(args, client, db, start_time, end_time, paging, validating, loading)
-
+        ingest_trips(args, client, db, start_time,
+                     end_time, paging, validating, loading)
