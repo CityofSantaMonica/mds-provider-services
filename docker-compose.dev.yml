@@ -19,7 +19,7 @@ services:
       - NB_UID
       - NB_GID
     ports:
-      - "${NB_FAKE_HOST_PORT}:8888"
+      - "${NB_HOST_PORT}:8888"
     user: root
     volumes:
       - data:/home/${NB_USER}/work/mds/data
