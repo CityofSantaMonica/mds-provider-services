@@ -74,7 +74,7 @@ Do not perform JSON Schema validation against the returned data.
 
 #### `--output OUTPUT`
 
-Base path to write data files into.
+Write data into JSON files in this path.
 
 #### `--providers PROVIDER [PROVIDER ...]`
 
@@ -104,10 +104,17 @@ The `vehicle_id` to obtain results for. Only applies to `--trips`.
 
 ### Helper Scripts
 
-A number of scripts are available in [`bin/`](bin/) to help ease the process of running repeated
-ingestion jobs.
+A number of scripts are available in [`bin/`](bin/) to help ease the process of running various tasks.
 
-`[OPTIONS]` below is the same list of options for the ingestion script listed above.
+`[OPTIONS]` below is the same list of options above.
+
+#### [`download.sh`](bin/download.sh)
+
+Download data files to a given directory.
+
+```console
+$ bin/download.sh <directory> [--providers [PROVIDER]] [--status_changes] [--trips] [OPTIONS]
+```
 
 #### [`hourly.sh`](bin/hourly.sh)
 
@@ -121,7 +128,9 @@ $ bin/hourly.sh [--providers [PROVIDER]] [--status_changes] [--trips] [OPTIONS]
 
 #### [`validate.sh`](bin/validate.sh)
 
-Validate a data feed, without loading the data into the database.
+Validate a data feed, without saving or loading the data into the database.
+
+Outputs a detailed report of any errors encountered during validation.
 
 ```console
 $ bin/validate.sh [--providers [PROVIDER]] [--status_changes] [--trips] [OPTIONS]

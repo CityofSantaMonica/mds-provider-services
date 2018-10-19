@@ -1,6 +1,6 @@
 import argparse
 from configparser import ConfigParser
-from datetime import datetime, timedelta
+from datetime import timedelta
 import dateutil.parser
 import json
 import mds
@@ -9,8 +9,6 @@ from mds.db import ProviderDataLoader
 import mds.providers
 from mds.schema.validation import ProviderDataValidator
 import os
-import time
-from uuid import UUID
 
 
 def parse_db_env():
@@ -108,6 +106,11 @@ def setup_cli():
         "--no_validate",
         action="store_true",
         help="Do not perform JSON Schema validation against the returned data."
+    )
+    parser.add_argument(
+        "--output",
+        type=str,
+        help="Write results to json files in this directory."
     )
     parser.add_argument(
         "--providers",
@@ -236,6 +239,24 @@ def data_validation(data, validator):
         yield valid
 
 
+def dump_payloads(output, payloads, datatype, start_time, end_time):
+    """
+    Write a the :payloads: dict (provider name => [data payload]) to json files in :output:.
+    """
+    def _file_name(output, provider, datatype, start_time, end_time):
+        """
+        Generate a filename from the given parameters.
+        """
+        fname = f"{provider}_{datatype}_{start_time.isoformat()}_{end_time.isoformat()}.json"
+        return os.path.join(output, fname)
+
+    for provider, payload in payloads.items():
+        fname = _file_name(output, provider.provider_name,
+                           datatype, start_time, end_time)
+        with open(fname, "w") as f:
+            json.dump(payload, f)
+
+
 def ingest_status_changes(cli, client, db, start_time, end_time, paging, validating, loading):
     """
     Run the ingestion flow for Status Changes, using the configured :client: and the given params.
@@ -249,6 +270,10 @@ def ingest_status_changes(cli, client, db, start_time, end_time, paging, validat
         bbox=cli.bbox,
         paging=paging
     )
+
+    if cli.output and os.path.exists(cli.output):
+        print(f"Writing data files to {cli.output}")
+        dump_payloads(cli.output, sc, mds.STATUS_CHANGES, start_time, end_time)
 
     if validating:
         print("Validating Status Changes")
@@ -281,6 +306,10 @@ def ingest_trips(cli, client, db, start_time, end_time, paging, validating, load
         bbox=cli.bbox,
         paging=paging
     )
+
+    if cli.output and os.path.exists(cli.output):
+        print(f"Writing data files to {cli.output}")
+        dump_payloads(cli.output, trips, mds.TRIPS, start_time, end_time)
 
     if validating:
         print("Validating Trips")
