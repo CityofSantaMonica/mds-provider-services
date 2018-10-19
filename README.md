@@ -47,22 +47,26 @@ $ docker-compose -f docker-compose.dev.yml <cmd> <cmd options> <service> <servic
 Copy the sample and edit as necessary. Compose automatically sources this
 environment file for `docker-compose` commands.
 
+You should modify this file with your own settings.
+
 ```console
 $ cp .env.sample .env
 ```
 
 ### 2. Initialize the database
 
-Build and start the necessary containers according to the dependencies outlined in
-[`docker-compose.yml`](docker-compose.yml).
+Build and start the necessary containers to load and explore a Postgres database.
 
-```bash
-$ docker-compose up -d --build --force-recreate initdb
+```console
+$ bin/initdb.sh
 ```
 
 ### 3. Run individual container jobs
 
+Generate some [`fake`](fake/) data or [`ingest`](ingest/) and validate data feeds.
+
 See the `README` file in each container folder for more details.
+
 
 [compose]: https://docs.docker.com/compose/overview/
 [docker]: https://www.docker.com/

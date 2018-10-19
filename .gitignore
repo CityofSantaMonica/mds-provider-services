@@ -4,3 +4,4 @@ docker-compose.yml
 
 .vscode/
 __pycache__/
+data/
