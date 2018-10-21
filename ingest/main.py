@@ -3,7 +3,7 @@ Command-line interface implementing various MDS Provider data ingestion flows, i
 
   - request data from one or more Provider endpoints
   - validate data against any version of the schema
-  - save data to the filesystem or load it into Postgres
+  - save data to the filesystem and/or load it into Postgres
 
 All fully customizable through extensive parameterization and configuration options.
 """
@@ -19,6 +19,7 @@ from mds.db import ProviderDataLoader
 import mds.providers
 from mds.schema.validation import ProviderDataValidator
 import os
+from pathlib import Path
 
 
 def parse_db_env():
@@ -98,7 +99,7 @@ def setup_cli():
         "--end_time",
         type=str,
         help="The end of the time query range for this request.\
-        Should be either int Unix seconds or ISO-8061 datetime format.\
+        Should be either int Unix milliseconds or ISO-8061 datetime format.\
         At least one of end_time or start_time is required."
     )
     parser.add_argument(
@@ -145,7 +146,7 @@ def setup_cli():
         "--start_time",
         type=str,
         help="The beginning of the time query range for this request.\
-        Should be either int Unix seconds or ISO-8061 datetime format.\
+        Should be either int Unix milliseconds or ISO-8061 datetime format.\
         At least one of end_time or start_time is required."
     )
     parser.add_argument(
@@ -237,72 +238,33 @@ def filter_providers(providers, names):
     return [p for p in providers if p.provider_name.lower() in names]
 
 
-def data_validation(data, validator):
-    """
-    Helper to validate data retrieved from APIs.
-    """
-    for provider, pages in data.items():
-        print("Validating data from", provider.provider_name)
-
-        # validate each page of data for this provider
-        valid = True
-        for payload in pages:
-            for error in validator.validate(payload):
-                print(error)
-                valid = False
-
-        # return a validation result per provider
-        yield valid
-
-
-def dump_payloads(output, payloads, datatype, start_time, end_time):
-    """
-    Write a the :payloads: dict (provider name => [data payload]) to json files in :output:.
-    """
-    def _file_name(output, provider, datatype, start_time, end_time):
-        """
-        Generate a filename from the given parameters.
-        """
-        fname = f"{provider}_{datatype}_{start_time.isoformat()}_{end_time.isoformat()}.json"
-        return os.path.join(output, fname)
-
-    for provider, payload in payloads.items():
-        fname = _file_name(output, provider.provider_name,
-                           datatype, start_time, end_time)
-        with open(fname, "w") as f:
-            json.dump(payload, f)
-
-
-def expand_files(sources):
+def expand_files(sources, record_type):
     """
     Return a list of all the files from a potentially mixed list of files and directories.
     Expands into the directories and includes their files in the output, as well as any input files.
     """
     # separate
-    files = [f for f in sources if os.path.isfile(f)]
-    dirs = [d for d in sources if os.path.isdir(d)]
+    files = [Path(f) for f in sources if os.path.isfile(f) and record_type in f]
+    dirs = [Path(d) for d in sources if os.path.isdir(d)]
 
     # expand and extend
-    expanded = [f for ls in [os.listdir(d) for d in dirs] for f in ls]
+    expanded = [f for ls in [Path(d).glob(f"*{record_type}*") for d in dirs] for f in ls]
     files.extend(expanded)
 
     return files
 
 
-def ingest(record_type, cli, client, db, start_time, end_time, paging, validating, loading):
+def acquire_data(record_type, cli, client, start_time, end_time, paging):
     """
-    Run the ingestion flow for the given :record_type:.
+    Obtains provider data as in-memory objects.
     """
-    # acquire the data
     if cli.source:
-        datasource = [f for f in expand_files(
-            cli.source) if f.contains(record_type)]
+        datasource = expand_files(cli.source, record_type)
 
         print(f"Loading from {datasource}")
     else:
-        print(f"Requesting {record_type}")
-        print(
-            f"Time range: {start_time.isoformat()} to {end_time.isoformat()}")
+        print(f"Requesting {record_type} from {provider_names(client.providers)}")
+        print(f"Time range: {start_time.isoformat()} to {end_time.isoformat()}")
 
         if record_type == mds.STATUS_CHANGES:
             datasource = client.get_status_changes(
@@ -321,44 +283,115 @@ def ingest(record_type, cli, client, db, start_time, end_time, paging, validatin
                 paging=paging
             )
 
-        if cli.output and os.path.exists(cli.output):
-            print(f"Writing data files to {cli.output}")
-            dump_payloads(cli.output, datasource,
-                          record_type, start_time, end_time)
+    return datasource
+
+
+def output_data(output, payloads, datatype, start_time, end_time):
+    """
+    Write a the :payloads: dict (provider name => [data payload]) to json files in :output:.
+    """
+    def _file_name(output, provider, datatype, start_time, end_time):
+        """
+        Generate a filename from the given parameters.
+        """
+        fname = f"{provider}_{datatype}_{start_time.isoformat()}_{end_time.isoformat()}.json"
+        return os.path.join(output, fname)
+
+    for provider, payload in payloads.items():
+        fname = _file_name(output, provider.provider_name,
+                           datatype, start_time, end_time)
+        with open(fname, "w") as f:
+            json.dump(payload, f)
+
+
+def validate_data(data, record_type, ref):
+    """
+    Helper to validate Provider data, which could be:
+
+      - a dict of Provider => [pages]
+      - a list of JSON file paths
+    """
+    print(f"Validating {record_type}")
+
+    if record_type == mds.STATUS_CHANGES:
+        validator = ProviderDataValidator.StatusChanges(ref=ref)
+    elif record_type == mds.TRIPS:
+        validator = ProviderDataValidator.Trips(ref=ref)
+    else:
+        raise ValueError(f"Invalid record_type: {record_type}")
+
+    valid = True
+    for provider in data:
+        if isinstance(provider, mds.providers.Provider):
+            print("Validating data from", provider.provider_name)
+            pages = data[provider]
+        elif isinstance(provider, Path):
+            print("Validating data from", provider)
+            pages = [json.load(provider.open("r"))]
+        elif isinstance(provider, str):
+            print("Validating data from", provider)
+            pages = [json.load(open(provider, "r"))]
+        else:
+            print("Skipping", provider)
+            continue
+
+        # validate each page of data for this provider
+        for payload in pages:
+            for error in validator.validate(payload):
+                print(error)
+                valid = False
+
+    print(f"Validation {'succeeded' if valid else 'failed'}")
+    return valid
+
+
+def load_data(datasource, record_type, db):
+    """
+    Load :record_type: data into :db: from :datasource:, which could be:
+
+      - a dict of Provider => [pages]
+      - a list of JSON file paths
+    """
+    for data in datasource:
+        if isinstance(data, Path) or isinstance(data, str):
+            # this is a file path
+            print(f"Loading {record_type} from", data)
+            if record_type == mds.STATUS_CHANGES:
+                db.load_status_changes(data)
+            elif record_type == mds.TRIPS:
+                db.load_trips(data)
+
+        elif isinstance(data, mds.providers.Provider):
+            # this is a dict payload from a Provider
+            print(f"Loading {record_type} from", data.provider_name)
+            if record_type == mds.STATUS_CHANGES:
+                db.load_status_changes(datasource[data])
+            elif record_type == mds.TRIPS:
+                db.load_trips(datasource[data])
+
+
+def ingest(record_type, ref, cli, client, db, start_time, end_time, paging, validating, loading):
+    """
+    Run the ingestion flow for the given :record_type:.
+    """
+    # acquire the data
+    datasource = acquire_data(record_type, cli, client, start_time, end_time, paging)
+
+    # output to files if needed
+    if cli.output and os.path.exists(cli.output):
+        print(f"Writing data files to {cli.output}")
+        output_data(cli.output, datasource, record_type, start_time, end_time)
 
     # do data validation
     if validating:
-        print(f"Validating {record_type}")
-
-        if record_type == mds.STATUS_CHANGES:
-            validator = ProviderDataValidator.StatusChanges(ref=ref)
-        elif record_type == mds.TRIPS:
-            validator = ProviderDataValidator.Trips(ref=ref)
-
-        valid = all(data_validation(datasource, validator))
-        print(f"Validation {'succeeded' if valid else 'failed'}")
+        valid = validate_data(datasource, validating, record_type, ref)
     else:
         print("Skipping data validation")
         valid = True
 
     # do data loading
     if loading and valid:
-        for data in datasource:
-            if isinstance(data, str):
-                # this is a file path
-                print(f"Loading {record_type} from", data)
-                if record_type == mds.STATUS_CHANGES:
-                    db.load_status_changes(data)
-                elif record_type == mds.TRIPS:
-                    db.load_trips(data)
-
-            elif isinstance(data, mds.providers.Provider):
-                # this is a dict payload from a Provider
-                print(f"Loading {record_type} from", data.provider_name)
-                if record_type == mds.STATUS_CHANGES:
-                    db.load_status_changes(datasource[data])
-                elif record_type == mds.TRIPS:
-                    db.load_trips(datasource[data])
+        load_data(datasource, record_type, db)
 
     print(f"{record_type} complete")
 
@@ -395,7 +428,6 @@ if __name__ == "__main__":
     # filter the registry with cli args, and configure the providers that will be used
     providers = [p.configure(config, use_id=True)
                  for p in filter_providers(registry, args.providers)]
-    print(f"Requesting from providers: {provider_names(providers)}")
 
     # parse any headers from the config to a dict
     for p in providers:
@@ -410,9 +442,9 @@ if __name__ == "__main__":
     loading = not args.no_load
 
     if args.status_changes:
-        ingest(mds.STATUS_CHANGES, args, client, db, start_time,
+        ingest(mds.STATUS_CHANGES, ref, args, client, db, start_time,
                end_time, paging, validating, loading)
 
     if args.trips:
-        ingest(mds.TRIPS, args, client, db, start_time,
+        ingest(mds.TRIPS, ref, args, client, db, start_time,
                end_time, paging, validating, loading)
