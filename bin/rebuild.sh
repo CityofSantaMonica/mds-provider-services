@@ -1,3 +1,5 @@
 #! /bin/bash
 
-docker-compose build --no-cache "$@"
+here=`dirname $0`
+
+$here/build.sh --no-cache "$@"
