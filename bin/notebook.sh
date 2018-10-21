@@ -1,3 +1,5 @@
 #! /bin/bash
 
-docker-compose run --service-ports --entrypoint bash "$1" start-notebook.sh
+here=`dirname $0`
+
+$here/bash.sh --service-ports "$1" start-notebook.sh
