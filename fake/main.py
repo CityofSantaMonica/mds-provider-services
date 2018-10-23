@@ -12,6 +12,7 @@ import argparse
 from datetime import datetime, timedelta
 import json
 import math
+import mds
 from mds.fake import geometry
 from mds.fake.data import random_string
 from mds.fake.provider import ProviderDataGenerator
@@ -108,7 +109,7 @@ def setup_cli():
         "--vehicle_types",
         type=str,
         nargs="+",
-        help="A list of vehicle_types to use for the generated data, e.g. '{}'".format(", ".join(schema.vehicle_types()))       
+        help="A list of vehicle_types to use for the generated data, e.g. '{}'".format(", ".join(schema.vehicle_types()))
     )
 
     return parser, parser.parse_args()
