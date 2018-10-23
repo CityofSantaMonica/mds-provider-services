@@ -16,6 +16,7 @@ from mds.fake import geometry
 from mds.fake.data import random_string
 from mds.fake.provider import ProviderDataGenerator
 from mds.json import parse_boundary, CustomJsonEncoder
+from mds.schema import ProviderSchema
 import os
 import random
 import time
@@ -29,6 +30,8 @@ def setup_cli():
         - the argument parser
         - the parsed args
     """
+    schema = ProviderSchema(mds.TRIPS)
+
     parser = argparse.ArgumentParser()
 
     parser.add_argument(
@@ -79,7 +82,7 @@ def setup_cli():
         "--propulsion_types",
         type=str,
         nargs="+",
-        help="A list of propulsion_types to use for the generated data"
+        help="A list of propulsion_types to use for the generated data, e.g. '{}'".format(", ".join(schema.propulsion_types()))
     )
     parser.add_argument(
         "--provider",
@@ -105,7 +108,7 @@ def setup_cli():
         "--vehicle_types",
         type=str,
         nargs="+",
-        help="A list of vehicle_types to use for the generated data"
+        help="A list of vehicle_types to use for the generated data, e.g. '{}'".format(", ".join(schema.vehicle_types()))       
     )
 
     return parser, parser.parse_args()
