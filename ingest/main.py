@@ -10,7 +10,7 @@ All fully customizable through extensive parameterization and configuration opti
 
 import argparse
 from configparser import ConfigParser
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 import dateutil.parser
 import json
 import mds
@@ -99,7 +99,7 @@ def setup_cli():
         "--end_time",
         type=str,
         help="The end of the time query range for this request.\
-        Should be either int Unix milliseconds or ISO-8061 datetime format.\
+        Should be either int Unix seconds or ISO-8061 datetime format.\
         At least one of end_time or start_time is required."
     )
     parser.add_argument(
@@ -146,7 +146,7 @@ def setup_cli():
         "--start_time",
         type=str,
         help="The beginning of the time query range for this request.\
-        Should be either int Unix milliseconds or ISO-8061 datetime format.\
+        Should be either int Unix seconds or ISO-8061 datetime format.\
         At least one of end_time or start_time is required."
     )
     parser.add_argument(
@@ -196,11 +196,14 @@ def parse_time_range(args):
 
     If both start_time and end_time are present, use those. Otherwise, compute from duration.
     """
-    def _to_datetime(input):
+    def _to_datetime(data):
         """
         Helper to parse different textual representations into datetime
         """
-        return dateutil.parser.parse(input)
+        try:
+            return datetime.fromtimestamp(int(data), timezone.utc)
+        except:
+            return dateutil.parser.parse(data)
 
     if args.start_time is not None and args.end_time is not None:
         return _to_datetime(args.start_time), _to_datetime(args.end_time)
@@ -337,6 +340,10 @@ def validate_data(data, record_type, ref):
 
         # validate each page of data for this provider
         for payload in pages:
+            if "data" in payload and record_type in payload["data"]:
+                d = payload["data"][record_type]
+                print(f"Validating {len(d)} {record_type} records")
+
             for error in validator.validate(payload):
                 print(error)
                 valid = False
@@ -356,18 +363,16 @@ def load_data(datasource, record_type, db):
         if isinstance(data, Path) or isinstance(data, str):
             # this is a file path
             print(f"Loading {record_type} from", data)
-            if record_type == mds.STATUS_CHANGES:
-                db.load_status_changes(data)
-            elif record_type == mds.TRIPS:
-                db.load_trips(data)
-
+            src = data
         elif isinstance(data, mds.providers.Provider):
             # this is a dict payload from a Provider
             print(f"Loading {record_type} from", data.provider_name)
-            if record_type == mds.STATUS_CHANGES:
-                db.load_status_changes(datasource[data])
-            elif record_type == mds.TRIPS:
-                db.load_trips(datasource[data])
+            src = datasource[data]
+
+        if record_type == mds.STATUS_CHANGES:
+            db.load_status_changes(src)
+        elif record_type == mds.TRIPS:
+            db.load_trips(src)
 
 
 def ingest(record_type, ref, cli, client, db, start_time, end_time, paging, validating, loading):
@@ -384,7 +389,7 @@ def ingest(record_type, ref, cli, client, db, start_time, end_time, paging, vali
 
     # do data validation
     if validating:
-        valid = validate_data(datasource, validating, record_type, ref)
+        valid = validate_data(datasource, record_type, ref)
     else:
         print("Skipping data validation")
         valid = True
@@ -414,6 +419,9 @@ if __name__ == "__main__":
 
     # parse the config file
     config = parse_config(args.config)
+
+    now = datetime.utcnow().isoformat()
+    print(f"Run time: {now}")
 
     # determine the MDS version to reference
     ref = args.ref or config["DEFAULT"]["ref"] or "master"
