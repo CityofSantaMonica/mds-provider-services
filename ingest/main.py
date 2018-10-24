@@ -345,8 +345,9 @@ def validate_data(data, record_type, ref):
                 print(f"Validating {len(d)} {record_type} records")
 
             for error in validator.validate(payload):
-                print(error)
-                valid = False
+                if "is not a multiple of 1.0" not in error.message:
+                    print(error)
+                    valid = False
 
     print(f"Validation {'succeeded' if valid else 'failed'}")
     return valid
