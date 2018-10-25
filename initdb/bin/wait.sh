@@ -6,7 +6,7 @@ set -e
 cmd="$@"
 
 until PGPASSWORD=$POSTGRES_PASSWORD PGUSER=$POSTGRES_USER \
-      psql -h "$POSTGRES_HOSTNAME" -c '\q'; do
+      psql -h "$POSTGRES_HOSTNAME" -d "$POSTGRES_DB" -c '\q'; do
   >&2 echo "Waiting for $POSTGRES_HOSTNAME"
   sleep 1
 done
