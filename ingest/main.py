@@ -20,6 +20,7 @@ import mds.providers
 from mds.schema.validation import ProviderDataValidator
 import os
 from pathlib import Path
+import sys
 
 
 def parse_db_env():
@@ -403,9 +404,28 @@ def ingest(record_type, ref, cli, client, db, start_time, end_time, paging, vali
 
 
 if __name__ == "__main__":
-    db = ProviderDataLoader(*parse_db_env())
+    now = datetime.utcnow().isoformat()
+    print(f"Run time: {now}")
 
+    # configuration
+    db = ProviderDataLoader(*parse_db_env())
     arg_parser, args = setup_cli()
+    paging = not args.no_paging
+    validating = not args.no_validate
+    loading = not args.no_load
+
+    # shortcut for loading from files
+    if args.source:
+        if args.status_changes:
+            ingest(record_type=mds.STATUS_CHANGES, ref=None, cli=args, client=None, db=db,
+                   start_time=None, end_time=None, paging=paging, validating=validating,
+                   loading=loading)
+        if args.trips:
+            ingest(record_type=mds.TRIPS, ref=None, cli=args, client=None, db=db,
+                   start_time=None, end_time=None, paging=paging, validating=validating,
+                   loading=loading)
+        # finished
+        sys.exit(0)
 
     # assert the time range parameters and parse a valid range
     if args.start_time is None and args.end_time is None:
@@ -420,9 +440,6 @@ if __name__ == "__main__":
 
     # parse the config file
     config = parse_config(args.config)
-
-    now = datetime.utcnow().isoformat()
-    print(f"Run time: {now}")
 
     # determine the MDS version to reference
     ref = args.ref or config["DEFAULT"]["ref"] or "master"
@@ -446,9 +463,6 @@ if __name__ == "__main__":
 
     # initialize an API client for these providers and configuration
     client = ProviderClient(providers)
-    paging = not args.no_paging
-    validating = not args.no_validate
-    loading = not args.no_load
 
     if args.status_changes:
         ingest(mds.STATUS_CHANGES, ref, args, client, db, start_time,
