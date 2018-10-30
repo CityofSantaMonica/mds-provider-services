@@ -23,10 +23,10 @@ services:
     user: root
     volumes:
       - data:/home/${NB_USER}/work/mds/data
-  initdb:
-    build: ./initdb
-    image: mds_provider_initdb
-    container_name: mds_provider_initdb
+  db:
+    build: ./db
+    image: mds_provider_db
+    container_name: mds_provider_db
     depends_on:
       - client
       - server

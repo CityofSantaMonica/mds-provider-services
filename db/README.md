@@ -1,10 +1,10 @@
-# initdb
+# db
 
-Initialize a MDS `provider` database in a Postgres database server.
+Work with a MDS `provider` Postgres database.
 
 ## Configuration
 
-This container uses the following environment variables to initialize the MDS database:
+This container uses the following environment variables to connect to the MDS database:
 
 ```bash
 POSTGRES_HOSTNAME=server
@@ -27,7 +27,7 @@ using the container in executable form with Compose.
 Run by default when the container starts up.
 
 ```
-$ docker-compose run initdb bin/initdb.sh
+$ docker-compose run db bin/initdb.sh
 ```
 
 ### Reset the database
@@ -35,5 +35,5 @@ $ docker-compose run initdb bin/initdb.sh
 Tears down the MDS database and then re-initializes.
 
 ```
-$ docker-compose run initdb bin/reset.sh
+$ docker-compose run db bin/reset.sh
 ```

@@ -12,8 +12,8 @@ The services are organized around specific functions. More detailed explanation 
 | service | description |
 | --------- | ----------- |
 | [`client`](client/) | [pgAdmin4][pgadmin] web client |
+| [`db`](db/) | Work with a `provider` database |
 | [`fake`](fake/) | Generate fake `provider` data for testing and development |
-| [`initdb`](initdb/) | Initialize a `provider` database |
 | [`ingest`](ingest/) | Ingest `provider` data from different sources |
 | [`server`](server/) | Local [postgres][postgres] database server |
 
