@@ -8,7 +8,7 @@ CREATE TABLE trips (
     trip_id UUID NOT NULL,
     trip_duration INT NOT NULL,
     trip_distance INT NOT NULL,
-    route JSON NOT NULL,
+    route jsonb NOT NULL,
     accuracy INT NOT NULL,
     start_time timestamptz NOT NULL,
     end_time timestamptz NOT NULL,

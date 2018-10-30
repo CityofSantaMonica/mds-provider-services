@@ -8,7 +8,7 @@ CREATE TABLE status_changes (
     event_type event_types NOT NULL,
     event_type_reason event_type_reasons NOT NULL,
     event_time timestamptz NOT NULL,
-    event_location JSON NOT NULL,
+    event_location jsonb NOT NULL,
     battery_pct FLOAT,
     associated_trips UUID[]
 );

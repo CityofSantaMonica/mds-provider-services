@@ -9,6 +9,6 @@ export PGPASSWORD=$MDS_PASSWORD
 psql \
     --host "$POSTGRES_HOSTNAME" \
     --dbname "$MDS_DB" \
-    --file scripts/common.sql \
-    --file scripts/trips.sql \
-    --file scripts/status_changes.sql
+    --file scripts/setup/common.sql \
+    --file scripts/setup/trips.sql \
+    --file scripts/setup/status_changes.sql
