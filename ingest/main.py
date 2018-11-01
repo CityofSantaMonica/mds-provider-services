@@ -408,7 +408,8 @@ if __name__ == "__main__":
     print(f"Run time: {now}")
 
     # configuration
-    db = ProviderDataLoader(*parse_db_env())
+    user, password, dbname, host, port = parse_db_env()
+    db = ProviderDataLoader(user=user, password=password, db=dbname, host=host, port=port)
     arg_parser, args = setup_cli()
     paging = not args.no_paging
     validating = not args.no_validate
