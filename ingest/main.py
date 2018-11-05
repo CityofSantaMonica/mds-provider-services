@@ -316,6 +316,15 @@ def validate_data(data, record_type, ref):
       - a list of JSON file paths
     """
     print(f"Validating {record_type}")
+    exceptions = [
+        "is not a multiple of 1.0",
+        "Payload error in links.prev",
+        "Payload error in links.next",
+        "Payload error in links.first",
+        "Payload error in links.last",
+        ".associated_trips: None is not of type 'array'",
+        ".parking_verification_url: None is not of type 'string'"
+    ]
 
     if record_type == mds.STATUS_CHANGES:
         validator = ProviderDataValidator.StatusChanges(ref=ref)
@@ -331,23 +340,25 @@ def validate_data(data, record_type, ref):
             pages = data[provider]
         elif isinstance(provider, Path):
             print("Validating data from", provider)
-            pages = [json.load(provider.open("r"))]
+            pages = json.load(provider.open("r"))
         elif isinstance(provider, str):
             print("Validating data from", provider)
-            pages = [json.load(open(provider, "r"))]
+            pages = json.load(open(provider, "r"))
         else:
             print("Skipping", provider)
             continue
 
         # validate each page of data for this provider
-        for payload in pages:
-            if "data" in payload and record_type in payload["data"]:
-                d = payload["data"][record_type]
+        for page in pages:
+            d = page.get("data", {}).get(record_type, [])
+            if len(d) > 0:
                 print(f"Validating {len(d)} {record_type} records")
 
-            for error in validator.validate(payload):
-                if "is not a multiple of 1.0" not in error.message:
-                    print(error)
+            for error in validator.validate(page):
+                description = error.describe()
+                # check for and allow exceptions, otherwise fail
+                if not any([ex in description for ex in exceptions]):
+                    print(description)
                     valid = False
 
     print(f"Validation {'succeeded' if valid else 'failed'}")
