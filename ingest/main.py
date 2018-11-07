@@ -20,6 +20,7 @@ import mds.providers
 from mds.schema.validation import ProviderDataValidator
 import os
 from pathlib import Path
+import re
 import sys
 
 
@@ -326,6 +327,8 @@ def validate_data(data, record_type, ref):
         ".parking_verification_url: None is not of type 'string'"
     ]
 
+    unexpected_prop_regx = re.compile("\('(\w+)' was unexpected\)")
+
     if record_type == mds.STATUS_CHANGES:
         validator = ProviderDataValidator.StatusChanges(ref=ref)
     elif record_type == mds.TRIPS:
@@ -359,7 +362,13 @@ def validate_data(data, record_type, ref):
                 # check for and allow exceptions, otherwise fail
                 if not any([ex in description for ex in exceptions]):
                     print(description)
-                    valid = False
+                    match = unexpected_prop_regx.search(description)
+                    if match:
+                        prop = match.group(1)
+                        print("Removing unexpected property:", prop)
+                        del error.instance[prop]
+                    else:
+                        valid = False
 
     print(f"Validation {'succeeded' if valid else 'failed'}")
     return valid
@@ -395,17 +404,17 @@ def ingest(record_type, ref, cli, client, db, start_time, end_time, paging, vali
     # acquire the data
     datasource = acquire_data(record_type, cli, client, start_time, end_time, paging)
 
-    # output to files if needed
-    if cli.output and os.path.exists(cli.output):
-        print(f"Writing data files to {cli.output}")
-        output_data(cli.output, datasource, record_type, start_time, end_time)
-
     # do data validation
     if validating:
         valid = validate_data(datasource, record_type, ref)
     else:
         print("Skipping data validation")
         valid = True
+
+    # output to files if needed
+    if cli.output and os.path.exists(cli.output):
+        print(f"Writing data files to {cli.output}")
+        output_data(cli.output, datasource, record_type, start_time, end_time)
 
     # do data loading
     if loading and valid:
