@@ -1,11 +1,11 @@
 -- An hour-by-hour view of Trips per provider
 
-CREATE MATERIALIZED VIEW public.v_trips_hourly AS
+CREATE MATERIALIZED VIEW public.v_trips_monthly AS
 
 SELECT
     provider_id,
     provider_name,
-    date_trunc('hour', timezone('America/Los_Angeles'::text, end_time)) AS end_hour_local,
+    date_trunc('month', timezone('America/Los_Angeles'::text, end_time)) AS end_month_local,
     count(trip_id) AS trips_count,
     round(avg(trip_duration), 1) AS avg_trip_duration,
     round(avg(trip_duration::numeric / 60.0), 4) AS avg_trip_duration_mins,
@@ -22,7 +22,7 @@ SELECT
     sum(actual_cost) AS total_trip_revenue,
     round(sum(actual_cost::numeric / 100.0), 2) AS total_trip_revenue_dollars
 FROM public.trips
-GROUP BY provider_id, provider_name, end_hour_local
-ORDER BY end_hour_local DESC, provider_name
+GROUP BY provider_id, provider_name, end_month_local
+ORDER BY end_month_local DESC, provider_name
 
 WITH NO DATA;
