@@ -26,14 +26,14 @@ using the container in executable form with Compose.
 
 Run by default when the container starts up.
 
-```
-$ docker-compose run db bin/initdb.sh
+```console
+docker-compose run db bin/initdb.sh
 ```
 
 ### Reset the database
 
 Tears down the MDS database and then re-initializes.
 
-```
-$ docker-compose run db bin/reset.sh
+```console
+docker-compose run db bin/reset.sh
 ```

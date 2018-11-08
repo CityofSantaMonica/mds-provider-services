@@ -1,8 +1,7 @@
--- A view of Trips to serve as the basis for other views, with some simple 
--- usability enhancements:
+-- A view of Trips with some usability enhancements:
 --
---  - convert start_time and end_time to 'America/Los_Angeles' timezone
---  - order results so proviers group together, with the most recently ended trip first
+--  + convert start_time and end_time to 'America/Los_Angeles' timezone
+--  + order results so proviers group together, with the most recently ended trip first
 
 CREATE MATERIALIZED VIEW public.v_trips AS
 
