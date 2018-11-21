@@ -1,11 +1,12 @@
 SELECT
     provider_name,
     FLOOR(EXTRACT(epoch from MAX(event_time_local) - MIN(event_time_local)) / 86400) as total_days,
-    COUNT(event_time_local) as total_deployments,
-    ROUND(COUNT(event_time_local)::numeric / FLOOR(EXTRACT(epoch from MAX(event_time_local) - MIN(event_time_local)) / 86400)::numeric, 2) as deploys_per_day,
-    COUNT(event_time_local) filter (where downtown_deployment = true) as downtown_deployments,
-    COUNT(event_time_local) filter (where downtown_deployment = false) as non_downtown_deployments,
-    ROUND((COUNT(event_time_local) filter (where downtown_deployment = true)::numeric) / (COUNT(event_time_local) filter (where downtown_deployment = false)), 2) as ratio
+    COUNT(*) as total_deployments,
+    ROUND(COUNT(*)::numeric / FLOOR(EXTRACT(epoch from MAX(event_time_local) - MIN(event_time_local)) / 86400)::numeric, 2) as deploys_per_day,
+    COUNT(*) filter (where downtown_deployment = true) as downtown_deployments,
+    COUNT(*) filter (where downtown_deployment = false) as non_downtown_deployments,
+    ROUND((COUNT(*) filter (where downtown_deployment = true))::numeric / (COUNT(*) filter (where downtown_deployment = false)), 2) as downtown_vs_non_downtown,
+    ROUND((COUNT(*) filter (where downtown_deployment = true))::numeric / (COUNT(*)), 2) as downtown_vs_all
 FROM (
     SELECT
         provider_name,
@@ -218,6 +219,6 @@ FROM (
         v_status_changes_available
     WHERE
         event_type_reason < 'user_drop_off'::event_type_reasons
-) as tmp
+) d
 
 GROUP BY provider_name
