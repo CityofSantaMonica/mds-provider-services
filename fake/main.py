@@ -139,8 +139,9 @@ if __name__ == "__main__":
 
     if date_format == "unix":
         date_start = datetime.fromtimestamp(
-            args.start) if args.start else date_start
-        date_end = datetime.fromtimestamp(args.end) if args.end else date_end
+            int(args.start)) if args.start else date_start
+        date_end = datetime.fromtimestamp(
+            int(args.end)) if args.end else date_end
     elif date_format == "iso8601":
         date_start = datetime.fromisoformat(
             args.start) if args.start else date_start
