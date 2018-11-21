@@ -1,4 +1,3 @@
-
 CREATE MATERIALIZED VIEW public.v_trip_routes AS
 
 SELECT
@@ -21,6 +20,3 @@ ORDER BY
     trip_end_time_local DESC, trip_id, timepoint_local
 
 WITH NO DATA;
-
-ALTER TABLE public.v_trip_routes
-    OWNER TO mds_provider;
