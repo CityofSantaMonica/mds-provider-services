@@ -1,12 +1,14 @@
--- An hour-by-hour view of Trips per provider
+-- An week-by-week view of Trips per provider
 
-CREATE MATERIALIZED VIEW public.v_trips_weekly AS
+CREATE VIEW public.v_trips_weekly AS
 
 SELECT
-    provider_id,
     provider_name,
-    date_trunc('week', timezone('America/Los_Angeles'::text, end_time)) AS end_week_local,
-    count(trip_id) AS trips_count,
+    date_trunc('week', csm_local_timestamp(end_time)) AS end_week_local,
+    vehicle_type,
+    count(trip_id) AS total_trips,
+    count(DISTINCT device_id) as unique_devices,
+    round(count(trip_id)::numeric / count(DISTINCT device_id), 2) as trips_per_device,
     round(avg(trip_duration), 1) AS avg_trip_duration,
     round(avg(trip_duration::numeric / 60.0), 4) AS avg_trip_duration_mins,
     round(avg(trip_duration::numeric / 3600.0), 4) AS avg_trip_duration_hours,
@@ -21,8 +23,11 @@ SELECT
     round(avg(actual_cost::numeric / 100.0), 2) AS avg_trip_cost_dollars,
     sum(actual_cost) AS total_trip_revenue,
     round(sum(actual_cost::numeric / 100.0), 2) AS total_trip_revenue_dollars
-FROM public.trips
-GROUP BY provider_id, provider_name, end_week_local
-ORDER BY end_week_local DESC, provider_name
+FROM
+    public.trips
+GROUP BY
+    provider_name, end_week_local, vehicle_type
+ORDER BY
+    end_week_local DESC, provider_name
 
-WITH NO DATA;
+;
