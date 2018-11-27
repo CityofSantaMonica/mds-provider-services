@@ -1,6 +1,6 @@
 -- An week-by-week view of Trips per provider
 
-CREATE VIEW public.v_trips_weekly AS
+CREATE VIEW public.trips_weekly AS
 
 SELECT
     provider_name,

@@ -1,6 +1,6 @@
 -- An day-by-day view of Trips per provider
 
-CREATE VIEW public.v_trips_daily AS
+CREATE VIEW public.trips_daily AS
 
 SELECT
     provider_name,

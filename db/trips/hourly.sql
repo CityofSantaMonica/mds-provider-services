@@ -1,6 +1,6 @@
 -- An hour-by-hour view of Trips per provider
 
-CREATE VIEW public.v_trips_hourly AS
+CREATE VIEW public.trips_hourly AS
 
 SELECT
     provider_name,
