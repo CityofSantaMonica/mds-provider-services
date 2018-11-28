@@ -29,10 +29,11 @@ WITH full_table AS (
                     _right.row_num IS NULL AS condition
                 FROM
                     row_table _left LEFT JOIN row_table _right
-                    ON (_left.row_num - 1) = _right.row_num
+                    ON _left.provider_id = _right.provider_id
                     AND _left.device_id = _right.device_id
-                    AND (_left.event_type = 'available'::event_types AND _right.event_type = 'available'::event_types OR
-                         _left.event_type <> 'available'::event_types AND _right.event_type <> 'available'::event_types)
+                    AND (_left.row_num + 1) = _right.row_num
+                    AND ((_left.event_type = 'available'::event_types AND _right.event_type = 'available'::event_types) OR
+                         (_left.event_type <> 'available'::event_types AND _right.event_type <> 'available'::event_types))
             ) -- repeat_table
             SELECT
                 repeat_table.provider_name,
