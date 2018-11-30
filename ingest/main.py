@@ -28,10 +28,10 @@ def parse_db_env():
     """
     Gets the required database configuration out of the Environment.
 
-    Returns a tuple:
+    Returns dict:
         - user
         - password
-        - db_name
+        - db
         - host
         - port
     """
@@ -42,7 +42,7 @@ def parse_db_env():
         exit(1)
 
     try:
-        db_name = os.environ["MDS_DB"]
+        db = os.environ["MDS_DB"]
     except:
         print("The MDS_DB environment variable is not set. Exiting.")
         exit(1)
@@ -59,7 +59,7 @@ def parse_db_env():
         port = 5432
         print("No POSTGRES_HOST_PORT environment variable set, defaulting to:", port)
 
-    return user, password, db_name, host, port
+    return { "user": user, "password": password, "db": db, "host": host, "port": port }
 
 
 def setup_cli():
@@ -101,7 +101,7 @@ def setup_cli():
         "--end_time",
         type=str,
         help="The end of the time query range for this request.\
-        Should be either int Unix seconds or ISO-8061 datetime format.\
+        Should be either int Unix seconds or ISO-8601 datetime format.\
         At least one of end_time or start_time is required."
     )
     parser.add_argument(
@@ -148,7 +148,7 @@ def setup_cli():
         "--start_time",
         type=str,
         help="The beginning of the time query range for this request.\
-        Should be either int Unix seconds or ISO-8061 datetime format.\
+        Should be either int Unix seconds or ISO-8601 datetime format.\
         At least one of end_time or start_time is required."
     )
     parser.add_argument(
@@ -392,9 +392,9 @@ def load_data(datasource, record_type, db):
             src = datasource[data]
 
         if record_type == mds.STATUS_CHANGES:
-            db.load_status_changes(src)
+            db.load_status_changes(src, stage_first=3)
         elif record_type == mds.TRIPS:
-            db.load_trips(src)
+            db.load_trips(src, stage_first=3)
 
 
 def ingest(record_type, ref, cli, client, db, start_time, end_time, paging, validating, loading):
@@ -428,8 +428,7 @@ if __name__ == "__main__":
     print(f"Run time: {now}")
 
     # configuration
-    user, password, dbname, host, port = parse_db_env()
-    db = ProviderDataLoader(user=user, password=password, db=dbname, host=host, port=port)
+    db = ProviderDataLoader(**parse_db_env())
     arg_parser, args = setup_cli()
     paging = not args.no_paging
     validating = not args.no_validate
