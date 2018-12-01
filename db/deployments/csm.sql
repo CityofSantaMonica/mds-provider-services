@@ -1,3 +1,5 @@
+DROP MATERIALIZED VIEW IF EXISTS public.csm_deployments CASCADE;
+
 CREATE MATERIALIZED VIEW public.csm_deployments AS
 
 SELECT
@@ -22,3 +24,6 @@ WHERE
     st_contains(csm_city_boundary(), csm_parse_feature_geom(event_location))
 
 WITH NO DATA;
+
+CREATE UNIQUE INDEX provider_device_event
+    ON public.csm_deployments (provider_id, device_id, event_time);

@@ -1,5 +1,7 @@
 -- Windows of time a given provider's device was marked as available for rental
 
+DROP VIEW IF EXISTS public.available_windows CASCADE;
+
 CREATE VIEW public.available_windows AS
 
 SELECT

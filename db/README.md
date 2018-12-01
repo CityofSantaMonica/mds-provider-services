@@ -19,21 +19,79 @@ MDS_PASSWORD=mds_provider_password
 
 ## Setup scripts
 
-Run the [setup scripts](bin/) from within the running container directly, or by
+Run the setup scripts from within the running container directly, or by
 using the container in executable form with Compose.
 
-### Initialize the database
+### Initialize the database from scratch
 
-Run by default when the container starts up.
+```bash
+docker-compose run db reset
 
-```console
-docker-compose run db bin/initdb.sh
+docker-compose run db init
 ```
 
-### Reset the database
+### Migrations
 
-Tears down the MDS database and then re-initializes.
+Run a [migration](migrate/) script with the given version number
 
-```console
-docker-compose run db bin/reset.sh
+```bash
+docker-compose run db migrate VERSION
+```
+
+Where `VERSION` is a version number like `x.y.z`.
+
+### Availability
+
+Create the [`availability`](availability/) view and associated infrastructure.
+
+#### Run the intialization scripts
+
+```bash
+docker-compose run db availability
+```
+
+#### Refresh the materialized view
+
+From the current contents of the `status_changes` table.
+
+```bash
+docker-compose run db availability refresh
+```
+
+### Deployments
+
+Create the [`deployments`](deployments/) views.
+
+#### Run the intialization scripts
+
+```bash
+docker-compose run db deployments
+```
+
+#### Refresh the materialized view
+
+From the current contents of the `status_changes` table.
+
+```bash
+docker-compose run db deployments refresh
+```
+
+### Trips
+
+Create additional [`trips`](trips/) and routes views.
+
+#### Run the intialization scripts
+
+```bash
+docker-compose run db trips
+```
+
+#### Refresh the materialized views
+
+From the current contents of the `trips` table.
+
+First refreshes `route_points`, and then `csm_routes`:
+
+```bash
+docker-compose run db trips refresh
 ```

@@ -1,3 +1,5 @@
+DROP VIEW IF EXISTS public.deployments CASCADE;
+
 CREATE VIEW public.deployments AS
 
   SELECT

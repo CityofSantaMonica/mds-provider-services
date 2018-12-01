@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 set -e
 
 # wait for the postgres server to be available before executing cmd
@@ -19,9 +19,11 @@ done
 
 case $sub in
     availability) cmd="bin/availability.sh $args" ;;
-    init) cmd="bin/initdb.sh" ;;
+    deployments) cmd="bin/deployments.sh $args" ;;
+    init) cmd="bin/initdb.sh $args" ;;
     migrate) cmd="bin/migrate.sh $args" ;;
-    reset) cmd="bin/reset.sh" ;;
+    reset) cmd="bin/reset.sh $args" ;;
+    routes|trips) cmd="bin/trips.sh $args" ;;
 esac
 
 exec $cmd

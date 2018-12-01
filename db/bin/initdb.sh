@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 set -e
 
 # run the MDS setup scripts
@@ -6,16 +6,16 @@ set -e
 export PGUSER=$MDS_USER
 export PGPASSWORD=$MDS_PASSWORD
 
-psql \
+psql -v ON_ERROR_STOP=1 \
     --host "$POSTGRES_HOSTNAME" \
     --dbname "$MDS_DB" \
     --file setup/common.sql \
     --file setup/trips.sql \
-    --file setup/status_changes.sql \
+    --file setup/status_changes.sql
 
-for filename in functions/*.sql; do
-    psql \
-        --host "$POSTGRES_HOSTNAME" \
-        --dbname "$MDS_DB" \
-        --file "$filename"
+for file in functions/*.sql; do
+    psql -v ON_ERROR_STOP=1 \
+    --host "$POSTGRES_HOSTNAME" \
+    --dbname "$MDS_DB" \
+    --file "$file"
 done

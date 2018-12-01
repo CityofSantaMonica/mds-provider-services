@@ -1,3 +1,5 @@
+DROP VIEW IF EXISTS public.csm_deployments_daily CASCADE;
+
 CREATE VIEW public.csm_deployments_daily AS
 
 SELECT
@@ -20,3 +22,5 @@ GROUP BY
     provider_name, event_day, vehicle_type
 ORDER BY
     provider_name, vehicle_type, event_day DESC
+
+;

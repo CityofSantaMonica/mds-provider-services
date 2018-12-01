@@ -1,4 +1,6 @@
-CREATE TABLE trips (
+DROP TABLE IF EXISTS public.trips CASCADE;
+
+CREATE TABLE public.trips (
     provider_id UUID NOT NULL,
     provider_name TEXT NOT NULL,
     device_id UUID NOT NULL,
@@ -17,6 +19,6 @@ CREATE TABLE trips (
     actual_cost INT
 );
 
-ALTER TABLE trips
+ALTER TABLE public.trips
     ADD CONSTRAINT pk_trip
     PRIMARY KEY (provider_id, trip_id);

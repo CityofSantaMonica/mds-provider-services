@@ -1,12 +1,14 @@
-#!/bin/sh
+#!/bin/bash
 set -e
 
 # delete the MDS user and database
+# recreate the MDS user and database
+# enable postgis on the MDS database
 
 export PGUSER=$POSTGRES_USER
 export PGPASSWORD=$POSTGRES_PASSWORD
 
-psql -v ON_ERROR_STOP=1 --host "$POSTGRES_HOSTNAME" --dbname "$POSTGRES_DB" <<-EOSQL
+psql -v ON_ERROR_STOP=1 --host "$POSTGRES_HOSTNAME" --dbname "$POSTGRES_DB" << EOSQL
     DROP DATABASE IF EXISTS $MDS_DB;
 
     DROP USER IF EXISTS $MDS_USER;
@@ -18,4 +20,8 @@ psql -v ON_ERROR_STOP=1 --host "$POSTGRES_HOSTNAME" --dbname "$POSTGRES_DB" <<-E
         ENCODING 'UTF8'
         CONNECTION LIMIT -1
     ;
+EOSQL
+
+psql -v ON_ERROR_STOP=1 --host "$POSTGRES_HOSTNAME" --dbname "$MDS_DB" << EOSQL
+    CREATE EXTENSION IF NOT EXISTS postgis;
 EOSQL

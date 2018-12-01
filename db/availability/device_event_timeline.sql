@@ -1,5 +1,7 @@
 -- Each event, for each device, for each provider - ordered chronologically
 
+DROP VIEW IF EXISTS public.device_event_timeline CASCADE;
+
 CREATE VIEW public.device_event_timeline AS
 
 SELECT

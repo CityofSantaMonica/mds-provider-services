@@ -1,3 +1,5 @@
+DROP VIEW IF EXISTS public.csm_deployments_total CASCADE;
+
 CREATE VIEW public.csm_deployments_total AS
 
 SELECT

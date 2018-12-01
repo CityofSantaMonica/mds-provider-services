@@ -1,5 +1,7 @@
 -- Windows of time a given provider's device was active in a trip
 
+DROP VIEW IF EXISTS public.trip_windows CASCADE;
+
 CREATE VIEW public.trip_windows AS
 
 SELECT

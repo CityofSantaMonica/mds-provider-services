@@ -1,5 +1,7 @@
 -- A de-deduplicated device event timeline
 
+DROP VIEW IF EXISTS public.device_event_timeline_dedupe CASCADE;
+
 CREATE VIEW public.device_event_timeline_dedupe AS
 
 SELECT
