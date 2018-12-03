@@ -14,3 +14,8 @@ RUN pip install --upgrade pip && \
     fix-permissions /home/$NB_USER
 
 USER $NB_USER
+
+COPY . .
+
+# sets up an "executable container" for the data analytics script
+ENTRYPOINT ["python", "main.py"]

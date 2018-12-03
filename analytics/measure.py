@@ -242,6 +242,9 @@ class DeviceCounter:
 
         self.__reset()
 
+        assert(len(self.counts) == 1)
+        assert(self.counts.keys()[0] == self.interval)
+
         scale = ceil(len(data) / 10)
 
         # using this counter's initial interval as a starting point,
@@ -302,9 +305,10 @@ class DeviceCounter:
         """
         Estimate the average number of devices within this interval's partition.
 
-        Use a Reimann sum to estimate, computing the `area` of each sub-interval in the partition:
-            `height` = the count of devices seen during that timeslice
-            `width`  = the length of the timeslice in seconds
+        Use a Riemann sum to estimate, computing the area of each sub-interval in the partition:
+
+        - height: the count of devices seen during that timeslice
+        - width:  the length of the timeslice in seconds
         """
         partition = self.partition()
 

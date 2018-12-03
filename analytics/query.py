@@ -45,12 +45,12 @@ conn = data_engine(**parse_db_env())
 
 class Availability:
     """
-    Represents a query of the availability view.
+    Represents a query of the availability view for a particular provider.
     """
 
     DEFAULT_TABLE = "availability"
 
-    def __init__(self, start, end, vehicle_types=None, start_types=None, end_types=None, table=DEFAULT_TABLE, local=False, debug=False):
+    def __init__(self, start, end, provider_name=None, vehicle_types=None, start_types=None, end_types=None, table=DEFAULT_TABLE, local=False, debug=False):
         """
         Initialize a new `Availability` query with the given parameters.
 
@@ -61,6 +61,8 @@ class Availability:
         :end: A python datetime, ISO8601 datetime string, or Unix timestamp for the end of the interval.
 
         Supported optional keyword arguments:
+
+        :provider_name: The name of a provider, as found in the providers registry.
 
         :vehicle_types: vehicle_type or list of vehicle_type to further restrict the query.
 
@@ -76,6 +78,7 @@ class Availability:
         """
         self.start = start
         self.end = end
+        self.provider_name = provider_name
         self.vehicle_types = vehicle_types
         self.start_types = start_types
         self.end_types = end_types
@@ -83,15 +86,13 @@ class Availability:
         self.local = local
         self.debug = debug
 
-    def get(self, provider_name, vehicle_types=None, start_types=None, end_types=None, predicates=None, table=DEFAULT_TABLE):
-        f"""
+    def get(self, provider_name=None, vehicle_types=None, start_types=None, end_types=None, predicates=None):
+        """
         Execute a query against the availability view.
 
-        Required positional arguments:
-
-        :provider_name: The name of a provider, e.g. `bird`, `JUMP`, `Lime`, `Lyft`
-
         Supported optional keyword arguments:
+
+        :provider_name: The name of a provider, as found in the providers registry.
 
         :vehicle_types: vehicle_type or list of vehicle_type to further restrict the query.
 
@@ -113,7 +114,8 @@ class Availability:
         else:
             predicates = []
 
-        predicates.append(f"provider_name = '{provider_name}'")
+        if provider_name or self.provider_name:
+            predicates.append(f"provider_name = '{provider_name or self.provider_name}'")
 
         vts = "'::vehicle_types,'"
         vehicle_types = vehicle_types or self.vehicle_types
@@ -142,7 +144,7 @@ class Availability:
             SELECT
                 *
             FROM
-                {table}
+                {self.table}
             WHERE
                 {predicates} AND
                 (({start_time} <= '{self.start}' AND {end_time} > '{self.start}') OR
