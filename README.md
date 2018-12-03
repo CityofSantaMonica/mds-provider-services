@@ -11,6 +11,7 @@ The services are organized around specific functions. More detailed explanation 
 
 | service | description |
 | --------- | ----------- |
+| [`analytics`](analytics/) | Perform analysis on `provider` data |
 | [`client`](client/) | [pgAdmin4][pgadmin] web client |
 | [`db`](db/) | Work with a `provider` database |
 | [`fake`](fake/) | Generate fake `provider` data for testing and development |
