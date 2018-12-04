@@ -17,8 +17,8 @@ else
         --dbname "$MDS_DB" \
         --file availability/device_event_timeline.sql \
         --file availability/device_event_timeline_dedupe.sql \
-        --file availability/available_windows.sql \
-        --file availability/trip_windows.sql \
+        --file availability/inactive_windows.sql \
+        --file availability/active_windows.sql \
         --file availability/availability.sql \
         --file availability/csm.sql
 fi

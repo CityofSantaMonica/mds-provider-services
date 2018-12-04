@@ -19,7 +19,7 @@ SELECT
     start_time,
     end_time
 FROM
-    available_windows
+    inactive_windows
 
 UNION
 
@@ -38,6 +38,6 @@ SELECT
     start_time,
     end_time
 FROM
-    trip_windows
+    active_windows
 
 ;

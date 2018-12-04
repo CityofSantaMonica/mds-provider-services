@@ -1,8 +1,8 @@
 -- Windows of time a given provider's device was active in a trip
 
-DROP VIEW IF EXISTS public.trip_windows CASCADE;
+DROP VIEW IF EXISTS public.active_windows CASCADE;
 
-CREATE VIEW public.trip_windows AS
+CREATE VIEW public.active_windows AS
 
 SELECT
     pickup.provider_id,
