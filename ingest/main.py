@@ -336,7 +336,7 @@ def validate_data(data, record_type, ref):
     else:
         raise ValueError(f"Invalid record_type: {record_type}")
 
-    valid = True
+    valid = {}
     for provider in data:
         if isinstance(provider, mds.providers.Provider):
             print("Validating data from", provider.provider_name)
@@ -351,12 +351,15 @@ def validate_data(data, record_type, ref):
             print("Skipping", provider)
             continue
 
+        valid[provider] = []
+
         # validate each page of data for this provider
         for page in pages:
             d = page.get("data", {}).get(record_type, [])
             if len(d) > 0:
                 print(f"Validating {len(d)} {record_type} records")
 
+            invalid = False
             for error in validator.validate(page):
                 description = error.describe()
                 # check for and allow exceptions, otherwise fail
@@ -367,10 +370,12 @@ def validate_data(data, record_type, ref):
                         prop = match.group(1)
                         print("Removing unexpected property:", prop)
                         del error.instance[prop]
-                    else:
-                        valid = False
+                else:
+                    invalid = True
 
-    print(f"Validation {'succeeded' if valid else 'failed'}")
+            if not invalid:
+                valid[provider].append(page)
+
     return valid
 
 
@@ -409,16 +414,21 @@ def ingest(record_type, ref, cli, client, db, start_time, end_time, paging, vali
         valid = validate_data(datasource, record_type, ref)
     else:
         print("Skipping data validation")
-        valid = True
+        valid = datasource
 
     # output to files if needed
     if cli.output and os.path.exists(cli.output):
         print(f"Writing data files to {cli.output}")
         output_data(cli.output, datasource, record_type, start_time, end_time)
 
+    # clean up before loading
+    for k in [k for k in valid.keys()]:
+        if not valid[k] or len(valid[k]) < 1:
+            del valid[k]
+
     # do data loading
-    if loading and valid:
-        load_data(datasource, record_type, db)
+    if loading and len(valid) > 0:
+        load_data(valid, record_type, db)
 
     print(f"{record_type} complete")
 
