@@ -40,17 +40,137 @@ def parse_db_env():
 
     return { "user": user, "password": password, "db": db, "host": host, "port": port }
 
-conn = data_engine(**parse_db_env())
+ENGINE = data_engine(**parse_db_env())
 
 
-class Availability:
+class TimeQuery:
+    """
+    Represents a query over a time period.
+    """
+
+    def __init__(self, start, end, **kwargs):
+        """
+        Initialize a new `TimeQuery` with the given parameters.
+
+        Required positional arguments:
+
+        :start: A python datetime, ISO8601 datetime string, or Unix timestamp for the beginning of the interval.
+
+        :end: A python datetime, ISO8601 datetime string, or Unix timestamp for the end of the interval.
+
+        Supported optional keyword arguments:
+
+        :engine: A `sqlalchemy.engine.Engine` representing a connection to the database.
+
+        :table: Name of the table or view containing the source records. This is required either at initialization or query time.
+
+        :provider_name: The name of a provider, as found in the providers registry.
+
+        :vehicle_types: vehicle_type or list of vehicle_type to further restrict the query.
+
+        :order_by: Column name(s) for the ORDER BY clause.
+
+        :local: False (default) to query the Unix time data columns; True to query the local time columns.
+
+        :debug: False (default) to supress debug messages; True to print debug messages.
+        """
+        if not start or not end:
+            raise ValueError("Start and End are required.")
+
+        self.start = start
+        self.end = end
+        self.engine = kwargs.get("engine")
+        self.table = kwargs.get("table")
+        self.provider_name = kwargs.get("provider_name")
+        self.vehicle_types = kwargs.get("vehicle_types")
+        self.order_by = kwargs.get("order_by")
+        self.local = kwargs.get("local", False)
+        self.debug = kwargs.get("debug", False)
+
+    def get(self, **kwargs):
+        """
+        Execute a query against this `Query`'s table.
+
+        Supported optional keyword arguments:
+
+        :engine: A `sqlalchemy.engine.Engine` representing a connection to the database.
+
+        :table: Name of the table or view containing the source records. This is required either at initialization or query time.
+
+        :provider_name: The name of a provider, as found in the providers registry.
+
+        :vehicle_types: vehicle_type or list of vehicle_type to further restrict the query.
+
+        :predicates: Additional predicates that will be ANDed to the WHERE clause (e.g `vehicle_id = '1234'`).
+
+        :order_by: Column name(s) for the ORDER BY clause.
+
+        :returns: A `pandas.DataFrame` of trips from the given provider, crossing this query's time range.
+        """
+        table = kwargs.get("table", self.table)
+        if not table:
+            raise ValueError("This query does not specify a table.")
+
+        engine = kwargs.get("engine", self.engine or ENGINE)
+
+        start_time = "start_time_local" if self.local else "start_time"
+        end_time = "end_time_local" if self.local else "end_time"
+
+        predicates = kwargs.get("predicates", [])
+        predicates = [predicates] if not isinstance(predicates, list) else predicates
+
+        if kwargs.get("provider_name", self.provider_name):
+            predicates.append(f"provider_name = '{provider_name or self.provider_name}'")
+
+        vts = "'::vehicle_types,'"
+        vehicle_types = kwargs.get("vehicle_types", self.vehicle_types)
+        if vehicle_types:
+            if not isinstance(vehicle_types, list):
+                vehicle_types = [vehicle_types]
+            predicates.append(f"vehicle_type IN ('{vts.join(vehicle_types)}'::vehicle_types)")
+
+        predicates = " AND ".join(predicates)
+
+        order_by = kwargs.get("order_by", self.order_by)
+        if order_by:
+            if not isinstance(order_by, list):
+                order_by = [order_by]
+            order_by = f"ORDER BY {",".join(order_by)}"
+
+        sql = f"""
+            SELECT
+                *
+            FROM
+                {self.table}
+            WHERE
+                {predicates} AND
+                (({start_time} <= %(start)s AND {end_time} > %(start)s) OR
+                ({start_time} < %(end)s AND {end_time} >= %(end)s) OR
+                ({start_time} >= %(start)s AND {end_time} <= %(end)s) OR
+                ({start_time} < %(end)s AND {end_time} IS NULL))
+            {order_by};
+            """
+
+        if self.debug:
+            print("Sending query:")
+            print(sql)
+
+        data = pandas.read_sql(sql, engine, params={"start": self.start, "end": self.end}, index_col=None)
+
+        if self.debug:
+            print(f"Got {len(data)} results")
+
+        return data
+
+
+class Availability(TimeQuery):
     """
     Represents a query of the availability view for a particular provider.
     """
 
     DEFAULT_TABLE = "availability"
 
-    def __init__(self, start, end, provider_name=None, vehicle_types=None, start_types=None, end_types=None, table=DEFAULT_TABLE, local=False, debug=False):
+    def __init__(self, start, end, **kwargs):
         """
         Initialize a new `Availability` query with the given parameters.
 
@@ -62,67 +182,36 @@ class Availability:
 
         Supported optional keyword arguments:
 
-        :provider_name: The name of a provider, as found in the providers registry.
-
-        :vehicle_types: vehicle_type or list of vehicle_type to further restrict the query.
-
         :start_types: event_type or list of event_type to restrict the `start_event_type` (e.g. `available`).
 
         :end_types: event_type or list of event_type to restrict the `end_event_type` (e.g. `available`).
 
-        :table: Name of the table or view containing the availability records.
-
-        :local: False (default) to query the Unix time data columns; True to query the local time columns.
-
-        :debug: False (default) to supress debug messages; True to print debug messages.
+        See `TimeQuery` for additional optional keyword arguments.
         """
-        self.start = start
-        self.end = end
-        self.provider_name = provider_name
-        self.vehicle_types = vehicle_types
-        self.start_types = start_types
-        self.end_types = end_types
-        self.table = table
-        self.local = local
-        self.debug = debug
+        self.start_types = kwargs.get("start_types")
+        self.end_types = kwargs.get("end_types")
 
-    def get(self, provider_name=None, vehicle_types=None, start_types=None, end_types=None, predicates=None):
+        kwargs["table"] = kwargs.get("table", DEFAULT_TABLE)
+
+        super().__init__(start, end, **kwargs)
+
+    def get(self, **kwargs):
         """
         Execute a query against the availability view.
 
         Supported optional keyword arguments:
 
-        :provider_name: The name of a provider, as found in the providers registry.
+        :start_types: event_type or list of event_type to restrict the start_event_type (e.g. `available`).
 
-        :vehicle_types: vehicle_type or list of vehicle_type to further restrict the query.
+        :end_types: event_type or list of event_type to restrict the end_event_type (e.g. `available`).
 
-        :start_types: event_type or list of event_type to restrict the `start_event_type` (e.g. `available`).
-
-        :end_types: event_type or list of event_type to restrict the `end_event_type` (e.g. `available`).
-
-        :predicates: Additional predicates that will be ANDed to the WHERE clause (e.g `vehicle_id = '1234'`).
-
-        :table: Name of the table or view containing the availability records.
+        See `TimeQuery` for additional optional keyword arguments.
 
         :returns: A `pandas.DataFrame` of events from the given provider, crossing this query's time range.
         """
-        start_time = "start_time_local" if self.local else "start_time"
-        end_time = "end_time_local" if self.local else "end_time"
-
-        if predicates:
+        if "predicates" in kwargs:
+            predicates = kwargs.get("predicates", [])
             predicates = [predicates] if not isinstance(predicates, list) else predicates
-        else:
-            predicates = []
-
-        if provider_name or self.provider_name:
-            predicates.append(f"provider_name = '{provider_name or self.provider_name}'")
-
-        vts = "'::vehicle_types,'"
-        vehicle_types = vehicle_types or self.vehicle_types
-        if vehicle_types:
-            if not isinstance(vehicle_types, list):
-                vehicle_types = [vehicle_types]
-            predicates.append(f"vehicle_type IN ('{vts.join(vehicle_types)}'::vehicle_types)")
 
         ets = "'::event_types,'"
         start_types = start_types or self.start_types
@@ -138,30 +227,44 @@ class Availability:
                 end_types = [end_types]
             predicates.append(f"end_event_type IN ('{ets.join(end_types)}'::event_types)")
 
-        predicates = " AND ".join(predicates)
+        kwargs["predicates"] = predicates
 
-        sql = f"""
-            SELECT
-                *
-            FROM
-                {self.table}
-            WHERE
-                {predicates} AND
-                (({start_time} <= '{self.start}' AND {end_time} > '{self.start}') OR
-                ({start_time} < '{self.end}' AND {end_time} >= '{self.end}') OR
-                ({start_time} >= '{self.start}' AND {end_time} <= '{self.end}') OR
-                ({start_time} < '{self.end}' AND {end_time} IS NULL))
-            ORDER BY
-                {start_time}, {end_time}
-            """
+        return super().get(**kwargs)
 
-        if self.debug:
-            print("Sending query:")
-            print(sql)
 
-        data = pandas.read_sql(sql, conn, index_col=None)
+class Trips(TimeQuery):
+    """
+    Represents a query of the trips table for a particular provider.
+    """
 
-        if self.debug:
-            print(f"Got {len(data)} results")
+    DEFAULT_TABLE = "trips"
 
-        return data
+    def __init__(self, start, end, **kwargs):
+        """
+        Initialize a new `Trips` query with the given parameters.
+
+        Required positional arguments:
+
+        :start: A python datetime, ISO8601 datetime string, or Unix timestamp for the beginning of the interval.
+
+        :end: A python datetime, ISO8601 datetime string, or Unix timestamp for the end of the interval.
+
+        Supported optional keyword arguments:
+
+        See `TimeQuery` for additional optional keyword arguments.
+        """
+        kwargs["table"] = kwargs.get("table", DEFAULT_TABLE)
+
+        super().__init__(start, end, **kwargs)
+
+    def get(self, **kwargs):
+        """
+        Execute a query against trip records.
+
+        Supported optional keyword arguments:
+
+        See `TimeQuery` for additional optional keyword arguments.
+
+        :returns: A `pandas.DataFrame` of trips from the given provider, crossing this query's time range.
+        """
+        return super().get(**kwargs)
