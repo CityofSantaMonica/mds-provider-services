@@ -352,29 +352,34 @@ def validate_data(data, record_type, ref):
             continue
 
         valid[provider] = []
+        seen = 0
+        passed = 0
 
         # validate each page of data for this provider
         for page in pages:
-            d = page.get("data", {}).get(record_type, [])
-            if len(d) > 0:
-                print(f"Validating {len(d)} {record_type} records")
-
             invalid = False
+
+            d = len(page.get("data", {}).get(record_type, []))
+            seen += d
+
             for error in validator.validate(page):
                 description = error.describe()
-                # check for and allow exceptions, otherwise fail
+                # fail if this error message is not an exception
                 if not any([ex in description for ex in exceptions]):
-                    print(description)
                     match = unexpected_prop_regx.search(description)
                     if match:
                         prop = match.group(1)
                         print("Removing unexpected property:", prop)
                         del error.instance[prop]
-                else:
-                    invalid = True
+                    else:
+                        print(description)
+                        invalid = True
 
             if not invalid:
+                passed += d
                 valid[provider].append(page)
+
+        print(f"Validated {seen} records ({passed} passed)")
 
     return valid
 
