@@ -1,18 +1,19 @@
-DROP MATERIALIZED VIEW IF EXISTS public.route_points CASCADE;
+DROP VIEW IF EXISTS public.route_points CASCADE;
 
-CREATE MATERIALIZED VIEW public.route_points AS
+CREATE VIEW public.route_points AS
 
 SELECT
-    provider_id,
-    trip_id,
-    ((jsonb_array_elements(trips.route -> 'features') -> 'properties') ->> 'timestamp')::numeric AS time_point,
-    timezone('UTC', to_timestamp((((jsonb_array_elements(trips.route -> 'features') -> 'properties') ->> 'timestamp')::numeric))) AS time_point_timestamp,
-    csm_parse_feature_geom(jsonb_array_elements(route -> 'features')) AS route_point,
-    jsonb_array_elements(route -> 'features') AS route_point_feature
-FROM
-    trips
+    trips.provider_id,
+    trips.trip_id,
+    coords.ts as time_point,
+    csm_parse_feature_geom(coords.f) as route_point,
+    coords.f as route_point_feature
+FROM trips CROSS JOIN LATERAL (
+    SELECT
+        f,
+        (f -> 'properties' ->> 'timestamp')::numeric as ts
+    FROM jsonb_array_elements(trips.route -> 'features') f
+    ORDER BY ts
+) coords
 
-WITH NO DATA;
-
-CREATE INDEX provider_trip
-    ON public.route_points (provider_id, trip_id);
+;
