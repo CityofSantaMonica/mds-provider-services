@@ -108,39 +108,3 @@ Flag indicating Trips should be requested.
 ### `--vehicle_id VEHICLE_ID`
 
 The `vehicle_id` to obtain results for. Only applies to `--trips`.
-
-## Helper Scripts
-
-A number of scripts are available in [`bin/`](bin/) to help ease the process of running various tasks.
-
-Run these command from the parent directory, where the `docker-compose.yml` file lives.
-
-`[OPTIONS]` below is the same list of options above.
-
-### [`download.sh`](bin/download.sh)
-
-Download data files to a given directory.
-
-```console
-ingest/bin/download.sh <directory> [--providers [PROVIDER]] [--status_changes] [--trips] [OPTIONS]
-```
-
-### [`hourly.sh`](bin/hourly.sh)
-
-Ingest data for the previous hour.
-
-E.g. if running at `12:45pm`, ingest data for `11:00am` to `12:00pm`.
-
-```console
-ingest/bin/hourly.sh [--providers [PROVIDER]] [--status_changes] [--trips] [OPTIONS]
-```
-
-### [`validate.sh`](bin/validate.sh)
-
-Validate a data feed, without saving or loading the data into the database.
-
-Outputs a detailed report of any errors encountered during validation.
-
-```console
-ingest/bin/validate.sh [--providers [PROVIDER]] [--status_changes] [--trips] [OPTIONS]
-```
