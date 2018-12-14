@@ -21,6 +21,6 @@ FROM
 GROUP BY
     provider_id, trip_id
 HAVING
-    in_csm > 0
+    sum(CASE WHEN st_contains(csm_city_boundary(), route_point) THEN 1 ELSE 0 END) > 0
 
 WITH NO DATA;
