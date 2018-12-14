@@ -83,7 +83,7 @@ class TimeQuery:
         self.table = kwargs.get("table")
         self.provider_name = kwargs.get("provider_name")
         self.vehicle_types = kwargs.get("vehicle_types")
-        self.order_by = kwargs.get("order_by")
+        self.order_by = kwargs.get("order_by", "")
         self.local = kwargs.get("local", False)
         self.debug = kwargs.get("debug", False)
 
@@ -119,7 +119,9 @@ class TimeQuery:
         predicates = kwargs.get("predicates", [])
         predicates = [predicates] if not isinstance(predicates, list) else predicates
 
-        if kwargs.get("provider_name", self.provider_name):
+        provider_name = kwargs.get("provider_name", self.provider_name)
+
+        if provider_name:
             predicates.append(f"provider_name = '{provider_name or self.provider_name}'")
 
         vts = "'::vehicle_types,'"
@@ -135,7 +137,8 @@ class TimeQuery:
         if order_by:
             if not isinstance(order_by, list):
                 order_by = [order_by]
-            order_by = f"ORDER BY {",".join(order_by)}"
+            order_by = ",".join(order_by)
+            order_by = f"ORDER BY {order_by}"
 
         sql = f"""
             SELECT
@@ -191,7 +194,7 @@ class Availability(TimeQuery):
         self.start_types = kwargs.get("start_types")
         self.end_types = kwargs.get("end_types")
 
-        kwargs["table"] = kwargs.get("table", DEFAULT_TABLE)
+        kwargs["table"] = kwargs.get("table", self.DEFAULT_TABLE)
 
         super().__init__(start, end, **kwargs)
 
@@ -209,13 +212,15 @@ class Availability(TimeQuery):
 
         :returns: A `pandas.DataFrame` of events from the given provider, crossing this query's time range.
         """
+        predicates = []
+
         if "predicates" in kwargs:
             predicates = kwargs.get("predicates", [])
             predicates = [predicates] if not isinstance(predicates, list) else predicates
 
         ets = "'::event_types,'"
-        start_types = start_types or self.start_types
-        end_types = end_types or self.end_types
+        start_types = kwargs.get("start_types", self.start_types)
+        end_types = kwargs.get("end_types", self.end_types)
 
         if start_types:
             if not isinstance(start_types, list):
@@ -253,7 +258,7 @@ class Trips(TimeQuery):
 
         See `TimeQuery` for additional optional keyword arguments.
         """
-        kwargs["table"] = kwargs.get("table", DEFAULT_TABLE)
+        kwargs["table"] = kwargs.get("table", self.DEFAULT_TABLE)
 
         super().__init__(start, end, **kwargs)
 

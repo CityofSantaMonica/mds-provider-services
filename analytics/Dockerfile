@@ -15,7 +15,5 @@ RUN pip install --upgrade pip && \
 
 USER $NB_USER
 
-COPY . .
-
 # sets up an "executable container" for the data analytics script
 ENTRYPOINT ["python", "main.py"]
