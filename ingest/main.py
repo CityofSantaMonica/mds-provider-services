@@ -133,7 +133,7 @@ def setup_cli():
         The default is to query all configured providers."
     )
     parser.add_argument(
-        "--rate-limit",
+        "--rate_limit",
         type=int,
         help="Number of seconds to pause between paging requests to a given endpoint."
     )
@@ -142,6 +142,11 @@ def setup_cli():
         type=str,
         help="Git branch name, commit hash, or tag at which to reference MDS.\
         The default is `master`."
+    )
+    parser.add_argument(
+        "--registry",
+        type=str,
+        help="Local file path to a providers.csv registry file to use instead of downloading from GitHub."
     )
     parser.add_argument(
         "--source",
@@ -487,9 +492,13 @@ if __name__ == "__main__":
     ref = args.ref or config["DEFAULT"]["ref"] or "master"
     print(f"Referencing MDS @ {ref}")
 
-    # download the Provider registry and filter based on params
-    print("Downloading provider registry...")
-    registry = mds.providers.get_registry(ref)
+    # acquire the Provider registry and filter based on params
+    if args.registry and Path(args.registry).is_file():
+        print("Reading local provider registry...")
+        registry = mds.providers.get_registry(file=args.registry)
+    else:
+        print("Downloading provider registry...")
+        registry = mds.providers.get_registry(ref)
 
     print(f"Acquired registry: {provider_names(registry)}")
 
