@@ -1,5 +1,22 @@
 version: "3"
+
 services:
+  analytics:
+    build: ./analytics
+    image: mds_provider_analytics
+    container_name: mds_provider_analytics
+    environment:
+      - POSTGRES_HOSTNAME
+      - POSTGRES_HOST_PORT
+      - MDS_DB
+      - MDS_USER
+      - MDS_PASSWORD
+    ports:
+      - "${NB_HOST_PORT}:8888"
+    volumes:
+      - ./analytics:/home/${NB_USER}/work/mds/analytics
+      - data:/home/${NB_USER}/work/mds/data
+
   client:
     build: ./client
     image: mds_provider_client
@@ -9,6 +26,7 @@ services:
       - PGADMIN_DEFAULT_PASSWORD
     ports:
       - "${PGADMIN_HOST_PORT}:80"
+
   fake:
     build: ./fake
     image: mds_provider_fake
@@ -23,13 +41,11 @@ services:
     user: root
     volumes:
       - data:/home/${NB_USER}/work/mds/data
+
   db:
     build: ./db
     image: mds_provider_db
     container_name: mds_provider_db
-    depends_on:
-      - client
-      - server
     environment:
       - POSTGRES_HOSTNAME
       - POSTGRES_DB
@@ -38,6 +54,7 @@ services:
       - MDS_DB
       - MDS_USER
       - MDS_PASSWORD
+
   ingest:
     build: ./ingest
     image: mds_provider_ingest
@@ -53,6 +70,7 @@ services:
     user: root
     volumes:
       - data:/home/${NB_USER}/work/mds/data
+
   server:
     build: ./server
     image: mds_provider_server

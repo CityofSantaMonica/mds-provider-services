@@ -1,3 +1,6 @@
 #! /bin/bash
 
-docker-compose up -d --build --force-recreate initdb
+docker-compose up --detach client server &&
+
+docker-compose run --rm db reset &&
+docker-compose run --rm db init
