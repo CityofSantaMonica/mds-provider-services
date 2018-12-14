@@ -133,6 +133,11 @@ def setup_cli():
         The default is to query all configured providers."
     )
     parser.add_argument(
+        "--rate-limit",
+        type=int,
+        help="Number of seconds to pause between paging requests to a given endpoint."
+    )
+    parser.add_argument(
         "--ref",
         type=str,
         help="Git branch name, commit hash, or tag at which to reference MDS.\
@@ -276,7 +281,8 @@ def acquire_data(record_type, cli, client, start_time, end_time, paging):
                 start_time=start_time,
                 end_time=end_time,
                 bbox=cli.bbox,
-                paging=paging
+                paging=paging,
+                rate_limt=cli.rate_limit or 0
             )
         elif record_type == mds.TRIPS:
             datasource = client.get_trips(
@@ -285,7 +291,8 @@ def acquire_data(record_type, cli, client, start_time, end_time, paging):
                 start_time=start_time,
                 end_time=end_time,
                 bbox=cli.bbox,
-                paging=paging
+                paging=paging,
+                rate_limt=cli.rate_limit or 0
             )
 
     return datasource
