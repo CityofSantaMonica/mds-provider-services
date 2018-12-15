@@ -21,6 +21,7 @@ from mds.schema import ProviderSchema
 import os
 import random
 import time
+import uuid
 
 
 def setup_cli():
@@ -86,9 +87,14 @@ def setup_cli():
         help="A list of propulsion_types to use for the generated data, e.g. '{}'".format(", ".join(schema.propulsion_types()))
     )
     parser.add_argument(
-        "--provider",
+        "--provider_name",
         type=str,
         help="The name of the fake mobility as a service provider"
+    )
+    parser.add_argument(
+        "--provider_id",
+        type=uuid.UUID,
+        help="The ID of the fake mobility as a service provider"
     )
     parser.add_argument(
         "--start",
@@ -128,7 +134,8 @@ if __name__ == "__main__":
         exit(1)
 
     # collect the parameters for data generation
-    provider_name = args.provider or f"Provider {random_string(3)}"
+    provider_name = args.provider_name or f"Provider {random_string(3)}"
+    provider_id = args.provider_id or uuid.uuid4()
     N = args.devices or random.randint(100, 500)
 
     date_format = "unix" if args.date_format is None else args.date_format
@@ -184,7 +191,7 @@ if __name__ == "__main__":
 
     print(f"Generating {N} devices for '{provider_name}'")
     t1 = time.time()
-    devices = gen.devices(N, provider_name)
+    devices = gen.devices(N, provider_name, provider_id)
     print(f"Generating devices complete ({time.time() - t1} s)")
 
     status_changes, trips = [], []
