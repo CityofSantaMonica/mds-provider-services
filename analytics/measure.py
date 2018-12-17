@@ -256,9 +256,9 @@ class DeviceCounter:
 
             if predicate is None or predicate(self, index, row):
                 if self.local:
-                    self.count_event(row['start_time_local'], row['end_time_local'])
+                    self.count_event(row["start_time_local"], row["end_time_local"])
                 else:
-                    self.count_event(row['start_time'], row['end_time'])
+                    self.count_event(row["start_time"], row["end_time"])
 
         if self.debug:
             print("Partitioning complete.")
