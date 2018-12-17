@@ -13,6 +13,8 @@ RUN pip install --upgrade pip && \
     pip install -r requirements.txt && \
     fix-permissions /home/$NB_USER
 
+COPY . .
+
 USER $NB_USER
 
 # sets up an "executable container" for the data analytics script

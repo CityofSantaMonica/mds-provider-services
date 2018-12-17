@@ -140,7 +140,7 @@ def availability(provider_name, vehicle_type, args):
 
     log(args, f"Starting calculation for {provider_name}")
 
-    data = q.get(provider_name)
+    data = q.get(provider_name=provider_name)
     partition = devices.count(data).partition()
 
     log(args, partition.describe())
@@ -160,7 +160,7 @@ def availability(provider_name, vehicle_type, args):
             table="csm_availability",
             local=args.local, debug=args.debug)
 
-        _data = _q.get(provider_name)
+        _data = _q.get(provider_name=provider_name)
 
         log(args, f"{len(_data)} availability records in time period")
 
