@@ -7,7 +7,7 @@ export PGUSER=$MDS_USER
 export PGPASSWORD=$MDS_PASSWORD
 
 if [[ "$1" == "refresh" ]]; then
-    echo "refreshing route_points and csm_routes"
+    echo "refreshing route_points, csm_routes"
     psql -v ON_ERROR_STOP=1 --host "$POSTGRES_HOSTNAME" --dbname "$MDS_DB" << EOSQL
     REFRESH MATERIALIZED VIEW public.route_points;
     REFRESH MATERIALIZED VIEW public.csm_routes;
