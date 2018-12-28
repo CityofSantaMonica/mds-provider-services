@@ -424,20 +424,29 @@ def load_data(datasource, record_type, db):
 
 def backfill(record_type, ref, cli, client, db, start_time, end_time, duration, validating, loading):
     """
-    Step backwards from :end_time: to :start_time:, running the ingestion flow in blocks of size :duration:.
+    Step backwards from :end_time: to :start_time:, running the ingestion flow in sliding blocks of size :duration:.
+
+    Subsequent blocks overlap the previous block by (:duration: / 2) seconds.
+
+    E.g. if :start_time: and :end_time: are both 2018-12-31, and :duration: is 6 hours:
+      - request 2018-12-31 17:59:59 to 2018-12-31 23:59:59
+      - request 2018-12-31 14:59:59 to 2018-12-31 20:59:59
+      - request 2018-12-31 11:59:59 to 2018-12-31 17:59:59
+      - request 2018-12-31 08:59:59 to 2018-12-31 14:59:59
+      - request 2018-12-31 05:59:59 to 2018-12-31 11:59:59
+      - request 2018-12-31 02:59:59 to 2018-12-31 08:59:59
+      - request 2018-12-30 23:59:59 to 2018-12-31 05:59:59
+      - request 2018-12-30 20:59:59 to 2018-12-31 02:59:59
     """
-    dt = end_time
+    start_time = datetime(start_time.year, start_time.month, start_time.day, 0, 0, 0)
+    end = datetime(end_time.year, end_time.month, end_time.day, 23, 59, 59)
+    duration = timedelta(seconds=duration)
+    offset = duration / 2
 
-    while dt >= start_time:
-        dt_start = datetime(dt.year, dt.month, dt.day, 0, 0, 0)
-        end = datetime(dt.year, dt.month, dt.day, 23, 59, 59)
-
-        while end >= dt_start:
-            start = end - timedelta(seconds=duration)
-            ingest(record_type, ref, cli, client, db, start, end, True, validating, loading)
-            end = start
-
-        dt = dt - timedelta(days=1)
+    while end >= start_time:
+        start = end - duration
+        ingest(record_type, ref, cli, client, db, start, end, True, validating, loading)
+        end = end - offset
 
 
 def ingest(record_type, ref, cli, client, db, start_time, end_time, paging, validating, loading):
