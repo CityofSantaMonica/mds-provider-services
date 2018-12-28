@@ -73,6 +73,11 @@ def setup_cli():
     parser = argparse.ArgumentParser()
 
     parser.add_argument(
+        "--backfill",
+        action="store_true",
+        help="Perform a backfill between --start_time and --end_time, in blocks of size --duration."
+    )
+    parser.add_argument(
         "--bbox",
         type=str,
         help="The bounding-box with which to restrict the results of this request.\
@@ -220,15 +225,13 @@ def parse_time_range(args):
     if args.start_time is not None and args.end_time is not None:
         return _to_datetime(args.start_time), _to_datetime(args.end_time)
 
-    duration = int(args.duration)
-
     if args.start_time is not None:
         start_time = _to_datetime(args.start_time)
-        return start_time, start_time + timedelta(seconds=duration)
+        return start_time, start_time + timedelta(seconds=args.duration)
 
     if args.end_time is not None:
         end_time = _to_datetime(args.end_time)
-        return end_time - timedelta(seconds=duration), end_time
+        return end_time - timedelta(seconds=args.duration), end_time
 
 
 def provider_names(providers):
@@ -419,6 +422,24 @@ def load_data(datasource, record_type, db):
             db.load_trips(src, stage_first=3)
 
 
+def backfill(record_type, ref, cli, client, db, start_time, end_time, duration, validating, loading):
+    """
+    Step backwards from :end_time: to :start_time:, running the ingestion flow in blocks of size :duration:.
+    """
+    dt = end_time
+
+    while dt >= start_time:
+        dt_start = datetime(dt.year, dt.month, dt.day, 0, 0, 0)
+        end = datetime(dt.year, dt.month, dt.day, 23, 59, 59)
+
+        while end >= dt_start:
+            start = end - timedelta(seconds=duration)
+            ingest(record_type, ref, cli, client, db, start, end, True, validating, loading)
+            end = start
+
+        dt = dt - timedelta(days=1)
+
+
 def ingest(record_type, ref, cli, client, db, start_time, end_time, paging, validating, loading):
     """
     Run the ingestion flow for the given :record_type:.
@@ -485,6 +506,10 @@ if __name__ == "__main__":
 
     start_time, end_time = parse_time_range(args)
 
+    if args.backfill and args.duration is None:
+        arg_parser.print_help()
+        exit(1)
+
     # parse the config file
     config = parse_config(args.config)
 
@@ -516,9 +541,13 @@ if __name__ == "__main__":
     client = ProviderClient(providers)
 
     if args.status_changes:
-        ingest(mds.STATUS_CHANGES, ref, args, client, db, start_time,
-               end_time, paging, validating, loading)
+        if args.backfill:
+            backfill(mds.STATUS_CHANGES, ref, args, client, db, start_time, end_time, args.duration, validating, loading)
+        else:
+            ingest(mds.STATUS_CHANGES, ref, args, client, db, start_time, end_time, paging, validating, loading)
 
     if args.trips:
-        ingest(mds.TRIPS, ref, args, client, db, start_time,
-               end_time, paging, validating, loading)
+        if args.backfill:
+            backfill(mds.TRIPS, ref, args, client, db, start_time, end_time, args.duration, validating, loading)
+        else:
+            ingest(mds.TRIPS, ref, args, client, db, start_time, end_time, paging, validating, loading)
