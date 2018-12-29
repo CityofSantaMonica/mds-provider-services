@@ -19,11 +19,5 @@ else
         --dbname "$MDS_DB" \
         --file trips/route_points.sql \
         --file trips/routes.sql \
-        --file trips/csm.sql \
-        --file trips/totals_by.sql \
-        --file trips/daily.sql \
-        --file trips/hourly.sql \
-        --file trips/minutely.sql \
-        --file trips/monthly.sql \
-        --file trips/weekly.sql
+        --file trips/csm.sql
 fi
