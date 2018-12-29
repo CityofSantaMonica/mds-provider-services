@@ -433,27 +433,32 @@ def backfill(record_type, db, client, start_time, end_time, duration, **kwargs):
     """
     Step backwards from :end_time: to :start_time:, running the ingestion flow in sliding blocks of size :duration:.
 
-    Subsequent blocks overlap the previous block by (:duration: / 2) seconds.
+    Subsequent blocks overlap the previous block by :duration:/2 seconds. Buffers on both ends ensure events starting or
+    ending near a time boundary are captured.
 
-    E.g. if :start_time: and :end_time: are both 2018-12-31, and :duration: is 6 hours:
-      - request 2018-12-31 17:59:59 to 2018-12-31 23:59:59
-      - request 2018-12-31 14:59:59 to 2018-12-31 20:59:59
-      - request 2018-12-31 11:59:59 to 2018-12-31 17:59:59
-      - request 2018-12-31 08:59:59 to 2018-12-31 14:59:59
-      - request 2018-12-31 05:59:59 to 2018-12-31 11:59:59
-      - request 2018-12-31 02:59:59 to 2018-12-31 08:59:59
-      - request 2018-12-30 23:59:59 to 2018-12-31 05:59:59
-      - request 2018-12-30 20:59:59 to 2018-12-31 02:59:59
+    For example:
+
+    :start_time:=datetime(2018,12,31,0,0,0), :end_time:=datetime(2018,12,31,23,59,59), :duration:=21600
+
+    Results in the following backfill requests:
+
+    - 2018-12-31T20:59:59 to 2019-01-01T02:59:59
+    - 2018-12-31T17:59:59 to 2018-12-31T23:59:59
+    - 2018-12-31T14:59:59 to 2018-12-31T20:59:59
+    - 2018-12-31T11:59:59 to 2018-12-31T17:59:59
+    - 2018-12-31T08:59:59 to 2018-12-31T14:59:59
+    - 2018-12-31T05:59:59 to 2018-12-31T11:59:59
+    - 2018-12-31T02:59:59 to 2018-12-31T08:59:59
+    - 2018-12-30T23:59:59 to 2018-12-31T05:59:59
+    - 2018-12-30T20:59:59 to 2018-12-31T02:59:59
     """
-    start_time = datetime(start_time.year, start_time.month, start_time.day, 0, 0, 0)
-    end = datetime(end_time.year, end_time.month, end_time.day, 23, 59, 59)
-
     kwargs["no_paging"] = False
     kwargs["client"] = client
     del kwargs[key] for key in ["start_time", "end_time", "duration"] if key in kwargs
 
     duration = timedelta(seconds=duration)
     offset = duration / 2
+    end = end_time + offset
 
     while end >= start_time:
         start = end - duration
