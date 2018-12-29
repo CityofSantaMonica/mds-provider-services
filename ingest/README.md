@@ -26,16 +26,42 @@ docker-compose run --rm ingest [OPTIONS]
 
 Note: you must provide a range of time to query using some combination of `start_time`, `end_time`, and `duration`. Providing both `start_time` and `end_time` takes precedence over either of them with `duration`.
 
+### `--backfill`
+
+Perform a backfill between `start_time` and `end_time`, in blocks of size `duration` (seconds).
+
+Unlike normal `ingest` queries, each of the time query parameters is required for backfill.
+
+Subsequent blocks overlap the previous block by `duration/2` seconds. Buffers on both ends ensure events starting or ending near a time boundary are captured.
+
+For example `2018-12-31` with a 6 hour duration:
+
+```bash
+--start_time 2018-12-31T00:00:00 --end_time 2018-12-31T23:59:59 --duration 21600
+```
+
+Results in the following backfill requests:
+
+- `2018-12-31 20:59:59` to `2019-01-01 02:59:59`
+- `2018-12-31 17:59:59` to `2018-12-31 23:59:59`
+- `2018-12-31 14:59:59` to `2018-12-31 20:59:59`
+- `2018-12-31 11:59:59` to `2018-12-31 17:59:59`
+- `2018-12-31 08:59:59` to `2018-12-31 14:59:59`
+- `2018-12-31 05:59:59` to `2018-12-31 11:59:59`
+- `2018-12-31 02:59:59` to `2018-12-31 08:59:59`
+- `2018-12-30 23:59:59` to `2018-12-31 05:59:59`
+- `2018-12-30 20:59:59` to `2018-12-31 02:59:59`
+
 ### `--bbox BBOX`
 
 The bounding-box with which to restrict the results of this request.
 
 The order is (separated by commas):
 
-* southwest longitude,
-* southwest latitude,
-* northeast longitude,
-* northeast latitude
+- southwest longitude,
+- southwest latitude,
+- northeast longitude,
+- northeast latitude
 
 For example:
 
@@ -57,7 +83,7 @@ Number of seconds; with `--start_time` or `--end_time` defines a time query rang
 
 ### `--end_time END_TIME`
 
-The end of the time query range for this request. Should be either int Unix seconds or ISO-8061 datetime format.
+The end of the time query range for this request. Should be either int Unix seconds or ISO-8601 datetime format.
 
 ### `--no_load`
 
@@ -95,7 +121,7 @@ Note that `--bbox`, `--end_time`, and other related querystring paramters don't 
 
 ### `--start_time START_TIME`
 
-The beginning of the time query range for this request. Should be either int Unix seconds or ISO-8061 datetime format.
+The beginning of the time query range for this request. Should be either int Unix seconds or ISO-8601 datetime format.
 
 ### `--status_changes`
 
