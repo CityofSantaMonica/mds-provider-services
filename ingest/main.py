@@ -99,8 +99,7 @@ def setup_cli():
     parser.add_argument(
         "--duration",
         type=int,
-        help="Number of seconds; with --start_time or --end_time,\
-        defines a time query range."
+        help="Number of seconds; with --start_time or --end_time, defines a time query range."
     )
     parser.add_argument(
         "--end_time",
@@ -117,8 +116,7 @@ def setup_cli():
     parser.add_argument(
         "--no_paging",
         action="store_true",
-        help="Flag indicating paging through the response should *not* occur.\
-        Return *only* the first page of data."
+        help="Flag indicating paging through the response should *not* occur. Return only the first page of data."
     )
     parser.add_argument(
         "--no_validate",
@@ -272,15 +270,24 @@ def expand_files(sources, record_type):
     return files
 
 
-def acquire_data(record_type, cli, client, start_time, end_time, paging):
+def acquire_data(record_type, **kwargs):
     """
-    Obtains provider data as in-memory objects.
+    Obtains provider data of type :record_type: as in-memory objects.
     """
-    if cli.source:
-        datasource = expand_files(cli.source, record_type)
+    source = kwargs.get("source")
+
+    if source:
+        datasource = expand_files(source, record_type)
 
         print(f"Loading from {datasource}")
     else:
+        start_time = kwargs.get("start_time")
+        end_time = kwargs.get("end_time")
+        client = kwargs.get("client")
+        paging = not kwargs.get("no_paging", False)
+        rate_limit = kwargs.get("rate_limit", 0)
+        bbox = kwargs.get("bbox")
+
         print(f"Requesting {record_type} from {provider_names(client.providers)}")
         print(f"Time range: {start_time.isoformat()} to {end_time.isoformat()}")
 
@@ -288,19 +295,19 @@ def acquire_data(record_type, cli, client, start_time, end_time, paging):
             datasource = client.get_status_changes(
                 start_time=start_time,
                 end_time=end_time,
-                bbox=cli.bbox,
+                bbox=bbox,
                 paging=paging,
-                rate_limt=cli.rate_limit or 0
+                rate_limt=rate_limit
             )
         elif record_type == mds.TRIPS:
             datasource = client.get_trips(
-                device_id=cli.device_id,
-                vehicle_id=cli.vehicle_id,
+                device_id=kwargs.get("device_id"),
+                vehicle_id=kwargs.get("vehicle_id"),
                 start_time=start_time,
                 end_time=end_time,
-                bbox=cli.bbox,
+                bbox=bbox,
                 paging=paging,
-                rate_limt=cli.rate_limit or 0
+                rate_limt=rate_limit
             )
 
     return datasource
@@ -422,7 +429,7 @@ def load_data(datasource, record_type, db):
             db.load_trips(src, stage_first=3)
 
 
-def backfill(record_type, ref, cli, client, db, start_time, end_time, duration, validating, loading):
+def backfill(record_type, db, client, start_time, end_time, duration, **kwargs):
     """
     Step backwards from :end_time: to :start_time:, running the ingestion flow in sliding blocks of size :duration:.
 
@@ -440,42 +447,49 @@ def backfill(record_type, ref, cli, client, db, start_time, end_time, duration, 
     """
     start_time = datetime(start_time.year, start_time.month, start_time.day, 0, 0, 0)
     end = datetime(end_time.year, end_time.month, end_time.day, 23, 59, 59)
+
+    kwargs["no_paging"] = False
+    kwargs["client"] = client
+    del kwargs[key] for key in ["start_time", "end_time", "duration"] if key in kwargs
+
     duration = timedelta(seconds=duration)
     offset = duration / 2
 
     while end >= start_time:
         start = end - duration
-        ingest(record_type, ref, cli, client, db, start, end, True, validating, loading)
+        ingest(record_type, db, **kwargs, start_time=start, end_time=end)
         end = end - offset
 
 
-def ingest(record_type, ref, cli, client, db, start_time, end_time, paging, validating, loading):
+def ingest(record_type, db, **kwargs):
     """
     Run the ingestion flow for the given :record_type:.
     """
-    # acquire the data
-    datasource = acquire_data(record_type, cli, client, start_time, end_time, paging)
+    datasource = acquire_data(record_type, **kwargs)
 
-    # do data validation
+    validating = not kwargs.get("no_validate", False)
     if validating:
-        valid = validate_data(datasource, record_type, ref)
+        ref = kwargs.get("ref")
+        validated_data = validate_data(datasource, record_type, ref)
     else:
         print("Skipping data validation")
-        valid = datasource
+        validated_data = datasource
 
     # output to files if needed
-    if cli.output and os.path.exists(cli.output):
-        print(f"Writing data files to {cli.output}")
-        output_data(cli.output, datasource, record_type, start_time, end_time)
+    output = kwargs.get("output")
+    if output and os.path.exists(output):
+        print(f"Writing data files to {output}")
+        start_time, end_time = kwargs.get("start_time"), kwargs.get("end_time")
+        output_data(output, datasource, record_type, start_time, end_time)
 
     # clean up before loading
-    for k in [k for k in valid.keys()]:
-        if not valid[k] or len(valid[k]) < 1:
-            del valid[k]
+    for k in [k for k in validated_data.keys()]:
+        if not validated_data[k] or len(validated_data[k]) < 1:
+            del validated_data[k]
 
-    # do data loading
-    if loading and len(valid) > 0:
-        load_data(valid, record_type, db)
+    loading = not kwargs.get("no_load", False)
+    if loading and len(validated_data) > 0:
+        load_data(validated_data, record_type, db)
 
     print(f"{record_type} complete")
 
@@ -487,22 +501,20 @@ if __name__ == "__main__":
     # configuration
     db = ProviderDataLoader(**parse_db_env())
     arg_parser, args = setup_cli()
-    paging = not args.no_paging
-    validating = not args.no_validate
-    loading = not args.no_load
+    config = parse_config(args.config)
+
+    # determine the MDS version to reference
+    args.ref = args.ref or config["DEFAULT"]["ref"] or "master"
+    print(f"Referencing MDS @ {args.ref}")
 
     # shortcut for loading from files
     if args.source:
         if args.status_changes:
-            ingest(record_type=mds.STATUS_CHANGES, ref=None, cli=args, client=None, db=db,
-                   start_time=None, end_time=None, paging=paging, validating=validating,
-                   loading=loading)
+            ingest(mds.STATUS_CHANGES, db, **vars(args))
         if args.trips:
-            ingest(record_type=mds.TRIPS, ref=None, cli=args, client=None, db=db,
-                   start_time=None, end_time=None, paging=paging, validating=validating,
-                   loading=loading)
+            ingest(mds.TRIPS, db, **vars(args))
         # finished
-        sys.exit(0)
+        exit(0)
 
     # assert the time range parameters and parse a valid range
     if args.start_time is None and args.end_time is None:
@@ -513,18 +525,11 @@ if __name__ == "__main__":
         arg_parser.print_help()
         exit(1)
 
-    start_time, end_time = parse_time_range(args)
-
     if args.backfill and args.duration is None:
         arg_parser.print_help()
         exit(1)
 
-    # parse the config file
-    config = parse_config(args.config)
-
-    # determine the MDS version to reference
-    ref = args.ref or config["DEFAULT"]["ref"] or "master"
-    print(f"Referencing MDS @ {ref}")
+    args.start_time, args.end_time = parse_time_range(args)
 
     # acquire the Provider registry and filter based on params
     if args.registry and Path(args.registry).is_file():
@@ -532,7 +537,7 @@ if __name__ == "__main__":
         registry = mds.providers.get_registry(file=args.registry)
     else:
         print("Downloading provider registry...")
-        registry = mds.providers.get_registry(ref)
+        registry = mds.providers.get_registry(args.ref)
 
     print(f"Acquired registry: {provider_names(registry)}")
 
@@ -548,15 +553,17 @@ if __name__ == "__main__":
 
     # initialize an API client for these providers and configuration
     client = ProviderClient(providers)
+    kwargs = vars(args)
 
-    if args.status_changes:
-        if args.backfill:
-            backfill(mds.STATUS_CHANGES, ref, args, client, db, start_time, end_time, args.duration, validating, loading)
-        else:
-            ingest(mds.STATUS_CHANGES, ref, args, client, db, start_time, end_time, paging, validating, loading)
+    if args.backfill:
+        start_time, end_time, duration = args.start_time, args.end_time, args.duration
 
-    if args.trips:
-        if args.backfill:
-            backfill(mds.TRIPS, ref, args, client, db, start_time, end_time, args.duration, validating, loading)
-        else:
-            ingest(mds.TRIPS, ref, args, client, db, start_time, end_time, paging, validating, loading)
+        if args.status_changes:
+            backfill(mds.STATUS_CHANGES, db, client, start_time, end_time, duration, **kwargs)
+        if args.trips:
+            backfill(mds.TRIPS, db, client, start_time, end_time, duration, **kwargs)
+    else:
+        if args.status_changes:
+            ingest(mds.STATUS_CHANGES, db, client=client, **kwargs)
+        if args.trips:
+            ingest(mds.TRIPS, db, client=client, **kwargs)
