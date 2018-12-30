@@ -52,6 +52,8 @@ Results in the following backfill requests:
 - `2018-12-30 23:59:59` to `2018-12-31 05:59:59`
 - `2018-12-30 20:59:59` to `2018-12-31 02:59:59`
 
+`--backfill` ignores the `--no_paging` flag.
+
 ### `--bbox BBOX`
 
 The bounding-box with which to restrict the results of this request.
@@ -91,11 +93,15 @@ Do not attempt to load any returned data into a database.
 
 ### `--no_paging`
 
-Flag indicating paging through the response should *not* occur. Return only the first page of data.
+Flag indicating paging through the response should not occur. Return only the first page of data.
 
 ### `--no_validate`
 
 Do not perform JSON Schema validation against the returned data.
+
+### `--on_conflict_update`
+
+Instead of ignoring, perform an UPDATE when incoming data conflicts with existing rows in the database.
 
 ### `--output OUTPUT`
 
@@ -103,9 +109,7 @@ Write data into JSON files in this path.
 
 ### `--providers PROVIDER [PROVIDER ...]`
 
-One or more providers to query, identified either by `provider_name` or `provider_id`.
-
-The default is to query all configured providers.
+One or more `provider_name` to query. The default is to query all configured providers.
 
 ### `--ref REF`
 
@@ -118,6 +122,18 @@ One or more paths to (directories containing) MDS Provider JSON file(s). These w
 The `--status_changes` and `--trips` flags will be respected if possible from the source file names.
 
 Note that `--bbox`, `--end_time`, and other related querystring paramters don't apply for `--source`.
+
+### `--stage_first STAGE_FIRST`
+
+`False` to append records directly to the target tables. `True` to stage in a temp table before UPSERT.
+
+Given an `int` greater than 0, determines the degrees of randomness when creating the temp table, e.g.
+
+```bash
+--stage_first 3
+```
+
+stages to a random temp table with `26*26*26` possible naming choices.
 
 ### `--start_time START_TIME`
 

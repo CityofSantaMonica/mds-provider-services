@@ -86,6 +86,11 @@ def setup_cli():
         help="Do not perform JSON Schema validation against the returned data."
     )
     parser.add_argument(
+        "--on_conflict_update",
+        action="store_true",
+        help="Instead of ignoring, perform an UPDATE when incoming data conflicts with existing rows in the database."
+    )
+    parser.add_argument(
         "--output",
         type=str,
         help="Write results to json files in this directory."
@@ -118,6 +123,11 @@ def setup_cli():
         type=str,
         nargs="+",
         help="One or more paths to (directories containing) MDS Provider JSON file(s)"
+    )
+    parser.add_argument(
+        "--stage_first",
+        help="False to append records directly to the data tables. True to stage in a temp table before UPSERT,\
+        or an int to stage in a temp table before UPSERT, with increasing randomness to the temp table name."
     )
     parser.add_argument(
         "--start_time",
@@ -414,7 +424,11 @@ def load_data(datasource, record_type, **kwargs):
       - a list of JSON file paths
     """
     # db connection
-    db = ProviderDataLoader(**parse_db_env(), stage_first=3)
+    stage_first = kwargs.get("stage_first") or 3
+    on_conflict_update = kwargs.get("on_conflict_update", False)
+    dbenv = { "stage_first": stage_first, "on_conflict_update": on_conflict_update, **parse_db_env() }
+
+    db = ProviderDataLoader(**dbenv)
 
     for data in datasource:
         if isinstance(data, Path) or isinstance(data, str):
