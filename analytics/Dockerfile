@@ -5,6 +5,9 @@ WORKDIR /home/$NB_USER/work/mds
 
 USER root
 
+RUN apt-get update && \
+    apt-get install -y jq
+
 # setup the app code and data directory
 COPY requirements.txt requirements.txt
 
