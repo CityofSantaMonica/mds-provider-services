@@ -24,44 +24,6 @@ import re
 import sys
 
 
-def parse_db_env():
-    """
-    Gets the required database configuration out of the Environment.
-
-    Returns dict:
-        - user
-        - password
-        - db
-        - host
-        - port
-    """
-    try:
-        user, password = os.environ["MDS_USER"], os.environ["MDS_PASSWORD"]
-    except:
-        print("The MDS_USER or MDS_PASSWORD environment variables are not set. Exiting.")
-        exit(1)
-
-    try:
-        db = os.environ["MDS_DB"]
-    except:
-        print("The MDS_DB environment variable is not set. Exiting.")
-        exit(1)
-
-    try:
-        host = os.environ["POSTGRES_HOSTNAME"]
-    except:
-        print("The POSTGRES_HOSTNAME environment variable is not set. Exiting.")
-        exit(1)
-
-    try:
-        port = os.environ["POSTGRES_HOST_PORT"]
-    except:
-        port = 5432
-        print("No POSTGRES_HOST_PORT environment variable set, defaulting to:", port)
-
-    return { "user": user, "password": password, "db": db, "host": host, "port": port }
-
-
 def setup_cli():
     """
     Create the cli argument interface, and parses incoming args.
@@ -406,13 +368,54 @@ def validate_data(data, record_type, ref):
     return valid
 
 
-def load_data(datasource, record_type, db):
+def parse_db_env():
     """
-    Load :record_type: data into :db: from :datasource:, which could be:
+    Gets the required database configuration out of the Environment.
+
+    Returns dict:
+        - user
+        - password
+        - db
+        - host
+        - port
+    """
+    try:
+        user, password = os.environ["MDS_USER"], os.environ["MDS_PASSWORD"]
+    except:
+        print("The MDS_USER or MDS_PASSWORD environment variables are not set. Exiting.")
+        exit(1)
+
+    try:
+        db = os.environ["MDS_DB"]
+    except:
+        print("The MDS_DB environment variable is not set. Exiting.")
+        exit(1)
+
+    try:
+        host = os.environ["POSTGRES_HOSTNAME"]
+    except:
+        print("The POSTGRES_HOSTNAME environment variable is not set. Exiting.")
+        exit(1)
+
+    try:
+        port = os.environ["POSTGRES_HOST_PORT"]
+    except:
+        port = 5432
+        print("No POSTGRES_HOST_PORT environment variable set, defaulting to:", port)
+
+    return { "user": user, "password": password, "db": db, "host": host, "port": port }
+
+
+def load_data(datasource, record_type, **kwargs):
+    """
+    Load :record_type: data from :datasource:, which could be:
 
       - a dict of Provider => [pages]
       - a list of JSON file paths
     """
+    # db connection
+    db = ProviderDataLoader(**parse_db_env(), stage_first=3)
+
     for data in datasource:
         if isinstance(data, Path) or isinstance(data, str):
             # this is a file path
@@ -424,12 +427,12 @@ def load_data(datasource, record_type, db):
             src = datasource[data]
 
         if record_type == mds.STATUS_CHANGES:
-            db.load_status_changes(src, stage_first=3)
+            db.load_status_changes(src)
         elif record_type == mds.TRIPS:
-            db.load_trips(src, stage_first=3)
+            db.load_trips(src)
 
 
-def backfill(record_type, db, client, start_time, end_time, duration, **kwargs):
+def backfill(record_type, client, start_time, end_time, duration, **kwargs):
     """
     Step backwards from :end_time: to :start_time:, running the ingestion flow in sliding blocks of size :duration:.
 
@@ -461,11 +464,10 @@ def backfill(record_type, db, client, start_time, end_time, duration, **kwargs):
 
     while end >= start_time:
         start = end - duration
-        ingest(record_type, db, **kwargs, start_time=start, end_time=end)
+        ingest(record_type, **kwargs, start_time=start, end_time=end)
         end = end - offset
 
-
-def ingest(record_type, db, **kwargs):
+def ingest(record_type, **kwargs):
     """
     Run the ingestion flow for the given :record_type:.
     """
@@ -493,7 +495,7 @@ def ingest(record_type, db, **kwargs):
 
     loading = not kwargs.get("no_load", False)
     if loading and len(validated_data) > 0:
-        load_data(validated_data, record_type, db)
+        load_data(validated_data, record_type, **kwargs)
 
     print(f"{record_type} complete")
 
@@ -503,7 +505,6 @@ if __name__ == "__main__":
     print(f"Run time: {now}")
 
     # configuration
-    db = ProviderDataLoader(**parse_db_env())
     arg_parser, args = setup_cli()
     config = parse_config(args.config)
 
@@ -514,9 +515,9 @@ if __name__ == "__main__":
     # shortcut for loading from files
     if args.source:
         if args.status_changes:
-            ingest(mds.STATUS_CHANGES, db, **vars(args))
+            ingest(mds.STATUS_CHANGES, **vars(args))
         if args.trips:
-            ingest(mds.TRIPS, db, **vars(args))
+            ingest(mds.TRIPS, **vars(args))
         # finished
         exit(0)
 
@@ -565,11 +566,11 @@ if __name__ == "__main__":
             del kwargs[key]
 
         if args.status_changes:
-            backfill(mds.STATUS_CHANGES, db, client, start_time, end_time, duration, **kwargs)
+            backfill(mds.STATUS_CHANGES, client, start_time, end_time, duration, **kwargs)
         if args.trips:
-            backfill(mds.TRIPS, db, client, start_time, end_time, duration, **kwargs)
+            backfill(mds.TRIPS, client, start_time, end_time, duration, **kwargs)
     else:
         if args.status_changes:
-            ingest(mds.STATUS_CHANGES, db, client=client, **kwargs)
+            ingest(mds.STATUS_CHANGES, client=client, **kwargs)
         if args.trips:
-            ingest(mds.TRIPS, db, client=client, **kwargs)
+            ingest(mds.TRIPS, client=client, **kwargs)
