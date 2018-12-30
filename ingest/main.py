@@ -35,11 +35,6 @@ def setup_cli():
     parser = argparse.ArgumentParser()
 
     parser.add_argument(
-        "--backfill",
-        action="store_true",
-        help="Perform a backfill between --start_time and --end_time, in blocks of size --duration."
-    )
-    parser.add_argument(
         "--bbox",
         type=str,
         help="The bounding-box with which to restrict the results of this request.\
@@ -61,7 +56,8 @@ def setup_cli():
     parser.add_argument(
         "--duration",
         type=int,
-        help="Number of seconds; with --start_time or --end_time, defines a time query range."
+        help="Number of seconds; with one of --start_time or --end_time, defines a time query range.\
+        With both, defines a backfill window size."
     )
     parser.add_argument(
         "--end_time",
@@ -481,6 +477,7 @@ def backfill(record_type, client, start_time, end_time, duration, **kwargs):
         ingest(record_type, **kwargs, start_time=start, end_time=end)
         end = end - offset
 
+
 def ingest(record_type, **kwargs):
     """
     Run the ingestion flow for the given :record_type:.
@@ -544,9 +541,7 @@ if __name__ == "__main__":
         arg_parser.print_help()
         exit(1)
 
-    if args.backfill and args.duration is None:
-        arg_parser.print_help()
-        exit(1)
+    args.backfill = all([args.start_time, args.end_time, args.duration])
 
     args.start_time, args.end_time = parse_time_range(args)
 
@@ -576,7 +571,7 @@ if __name__ == "__main__":
 
     if args.backfill:
         start_time, end_time, duration = args.start_time, args.end_time, args.duration
-        for key in [k for k in ["start_time", "end_time", "duration"] if k in kwargs]:
+        for key in ["start_time", "end_time", "duration"]:
             del kwargs[key]
 
         if args.status_changes:

@@ -6,33 +6,32 @@ Pull data from `provider` API endpoints and load to a Postgres database.
 
 First, copy and edit the sample configuration file:
 
-```console
+```bash
 cp .config.sample .config
 ```
 
 Next, ensure the image is up to date locally:
 
-```console
+```bash
 docker-compose build --no-cache ingest
 ```
 
 Then run the data ingester:
 
-```console
+```bash
 docker-compose run --rm ingest [OPTIONS]
 ```
 
 ## [OPTIONS]
 
-Note: you must provide a range of time to query using some combination of `start_time`, `end_time`, and `duration`. Providing both `start_time` and `end_time` takes precedence over either of them with `duration`.
+Note: you must provide a range of time to query using some combination of `start_time`, `end_time`, and `duration`.
 
-### `--backfill`
+### Backfilling
 
-Perform a backfill between `start_time` and `end_time`, in blocks of size `duration` (seconds).
+Using all three time parameters together defines a *backfill*, between `start_time` and `end_time`, in blocks of size `duration`.
 
-Unlike normal `ingest` queries, each of the time query parameters is required for backfill.
-
-Subsequent blocks overlap the previous block by `duration/2` seconds. Buffers on both ends ensure events starting or ending near a time boundary are captured.
+Subsequent backfill blocks overlap the previous block by `duration/2` seconds. Buffers on both ends ensure events
+starting or ending near a time boundary are captured.
 
 For example `2018-12-31` with a 6 hour duration:
 
@@ -52,7 +51,7 @@ Results in the following backfill requests:
 - `2018-12-30 23:59:59` to `2018-12-31 05:59:59`
 - `2018-12-30 20:59:59` to `2018-12-31 02:59:59`
 
-`--backfill` ignores the `--no_paging` flag.
+Backfills ignore the `no_paging` flag, always requesting all pages.
 
 ### `--bbox BBOX`
 
@@ -67,7 +66,7 @@ The order is (separated by commas):
 
 For example:
 
-```console
+```bash
 --bbox -122.4183,37.7758,-122.4120,37.7858
 ```
 
