@@ -22,6 +22,7 @@ import os
 from pathlib import Path
 import re
 import sys
+import time
 
 
 def setup_cli():
@@ -467,6 +468,7 @@ def backfill(record_type, client, start_time, end_time, duration, **kwargs):
     """
     kwargs["no_paging"] = False
     kwargs["client"] = client
+    rate_limit = kwargs.get("rate_limit")
 
     duration = timedelta(seconds=duration)
     offset = duration / 2
@@ -476,6 +478,9 @@ def backfill(record_type, client, start_time, end_time, duration, **kwargs):
         start = end - duration
         ingest(record_type, **kwargs, start_time=start, end_time=end)
         end = end - offset
+
+        if rate_limit:
+            time.sleep(rate_limit)
 
 
 def ingest(record_type, **kwargs):
