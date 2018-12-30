@@ -454,7 +454,6 @@ def backfill(record_type, db, client, start_time, end_time, duration, **kwargs):
     """
     kwargs["no_paging"] = False
     kwargs["client"] = client
-    del kwargs[key] for key in ["start_time", "end_time", "duration"] if key in kwargs
 
     duration = timedelta(seconds=duration)
     offset = duration / 2
@@ -562,6 +561,8 @@ if __name__ == "__main__":
 
     if args.backfill:
         start_time, end_time, duration = args.start_time, args.end_time, args.duration
+        for key in [k for k in ["start_time", "end_time", "duration"] if k in kwargs]:
+            del kwargs[key]
 
         if args.status_changes:
             backfill(mds.STATUS_CHANGES, db, client, start_time, end_time, duration, **kwargs)
