@@ -110,9 +110,17 @@ Write data into JSON files in this path.
 
 One or more `provider_name` to query. The default is to query all configured providers.
 
+### `--rate_limit RATE_LIMIT`
+
+Number of seconds to pause between paging and backfill requests.
+
 ### `--ref REF`
 
 Git branch name, commit hash, or tag at which to reference MDS. The default is `master`.
+
+### `--registry REGISTRY`
+
+Local file path to a `.csv` registry file to use, instead of downloading from GitHub.
 
 ### `--source SOURCE [SOURCE ...]`
 
