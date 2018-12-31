@@ -8,21 +8,21 @@ Command-line interface implementing various MDS Provider data ingestion flows, i
 All fully customizable through extensive parameterization and configuration options.
 """
 
+from acquire import acquire_data, provider_names
 import argparse
 from configparser import ConfigParser
 from datetime import datetime, timedelta, timezone
 import dateutil.parser
 import json
+from load import load_data
 import mds
 from mds.api import ProviderClient
-from mds.db import ProviderDataLoader
 import mds.providers
-from mds.schema.validation import ProviderDataValidator
 import os
 from pathlib import Path
-import re
 import sys
 import time
+from validate import validate_data
 
 
 def setup_cli():
@@ -45,14 +45,13 @@ def setup_cli():
     parser.add_argument(
         "--config",
         type=str,
-        help="Path to a provider configuration file to use.\
-        The default is `.config`."
+        default=os.path.join(os.getcwd(), ".config"),
+        help="Path to a provider configuration file to use."
     )
     parser.add_argument(
         "--device_id",
         type=str,
-        help="The device_id to obtain results for.\
-        Only applies to --trips."
+        help="The device_id to obtain results for. Only applies to --trips."
     )
     parser.add_argument(
         "--duration",
@@ -102,13 +101,13 @@ def setup_cli():
     parser.add_argument(
         "--rate_limit",
         type=int,
+        default=0,
         help="Number of seconds to pause between paging requests to a given endpoint."
     )
     parser.add_argument(
         "--ref",
         type=str,
-        help="Git branch name, commit hash, or tag at which to reference MDS.\
-        The default is `master`."
+        help="Git branch name, commit hash, or tag at which to reference MDS."
     )
     parser.add_argument(
         "--registry",
@@ -146,8 +145,7 @@ def setup_cli():
     parser.add_argument(
         "--vehicle_id",
         type=str,
-        help="The vehicle_id to obtain results for.\
-        Only applies to --trips."
+        help="The vehicle_id to obtain results for. Only applies to --trips."
     )
 
     return parser, parser.parse_args()
@@ -155,10 +153,8 @@ def setup_cli():
 
 def parse_config(path):
     """
-    Helper to parse a config file at :path:, which defaults to `.config`.
+    Helper to parse a config file at :path:.
     """
-    path = path or os.path.join(os.getcwd(), ".config")
-
     if not os.path.exists(path):
         print("Could not find config file: ", path)
         exit(1)
@@ -190,7 +186,8 @@ def parse_time_range(args):
             return dateutil.parser.parse(data)
 
     if args.start_time is not None and args.end_time is not None:
-        return _to_datetime(args.start_time), _to_datetime(args.end_time)
+        start_time, end_time = _to_datetime(args.start_time), _to_datetime(args.end_time)
+        return (start_time, end_time) if start_time <= end_time else (end_time, start_time)
 
     if args.start_time is not None:
         start_time = _to_datetime(args.start_time)
@@ -201,246 +198,21 @@ def parse_time_range(args):
         return end_time - timedelta(seconds=args.duration), end_time
 
 
-def provider_names(providers):
+def output_data(output, payloads, record_type, start_time, end_time):
     """
-    Returns the names of the :providers:, separated by commas.
+    Write data to json files in the a directory.
     """
-    return ", ".join([p.provider_name for p in providers])
-
-
-def filter_providers(providers, names):
-    """
-    Filters the list of :providers: given one or more :names:.
-    """
-    if names is None or len(names) == 0:
-        return providers
-
-    if isinstance(names, str):
-        names = [names]
-
-    names = [n.lower() for n in names]
-
-    return [p for p in providers if p.provider_name.lower() in names]
-
-
-def expand_files(sources, record_type):
-    """
-    Return a list of all the files from a potentially mixed list of files and directories.
-    Expands into the directories and includes their files in the output, as well as any input files.
-    """
-    # separate
-    files = [Path(f) for f in sources if os.path.isfile(f) and record_type in f]
-    dirs = [Path(d) for d in sources if os.path.isdir(d)]
-
-    # expand and extend
-    expanded = [f for ls in [Path(d).glob(f"*{record_type}*") for d in dirs] for f in ls]
-    files.extend(expanded)
-
-    return files
-
-
-def acquire_data(record_type, **kwargs):
-    """
-    Obtains provider data of type :record_type: as in-memory objects.
-    """
-    source = kwargs.get("source")
-
-    if source:
-        datasource = expand_files(source, record_type)
-
-        print(f"Loading from {datasource}")
-    else:
-        start_time = kwargs.get("start_time")
-        end_time = kwargs.get("end_time")
-        client = kwargs.get("client")
-        paging = not kwargs.get("no_paging", False)
-        rate_limit = kwargs.get("rate_limit", 0)
-        bbox = kwargs.get("bbox")
-
-        print(f"Requesting {record_type} from {provider_names(client.providers)}")
-        print(f"Time range: {start_time.isoformat()} to {end_time.isoformat()}")
-
-        if record_type == mds.STATUS_CHANGES:
-            datasource = client.get_status_changes(
-                start_time=start_time,
-                end_time=end_time,
-                bbox=bbox,
-                paging=paging,
-                rate_limt=rate_limit
-            )
-        elif record_type == mds.TRIPS:
-            datasource = client.get_trips(
-                device_id=kwargs.get("device_id"),
-                vehicle_id=kwargs.get("vehicle_id"),
-                start_time=start_time,
-                end_time=end_time,
-                bbox=bbox,
-                paging=paging,
-                rate_limt=rate_limit
-            )
-
-    return datasource
-
-
-def output_data(output, payloads, datatype, start_time, end_time):
-    """
-    Write a the :payloads: dict (provider name => [data payload]) to json files in :output:.
-    """
-    def _file_name(output, provider, datatype, start_time, end_time):
+    def _file_name(output, provider):
         """
         Generate a filename from the given parameters.
         """
-        fname = f"{provider}_{datatype}_{start_time.isoformat()}_{end_time.isoformat()}.json"
+        fname = f"{provider}_{record_type}_{start_time.isoformat()}_{end_time.isoformat()}.json"
         return os.path.join(output, fname)
 
     for provider, payload in payloads.items():
-        fname = _file_name(output, provider.provider_name,
-                           datatype, start_time, end_time)
+        fname = _file_name(output, provider.provider_name)
         with open(fname, "w") as f:
             json.dump(payload, f)
-
-
-def validate_data(data, record_type, ref):
-    """
-    Helper to validate Provider data, which could be:
-
-      - a dict of Provider => [pages]
-      - a list of JSON file paths
-    """
-    print(f"Validating {record_type}")
-    exceptions = [
-        "is not a multiple of 1.0",
-        "Payload error in links.prev",
-        "Payload error in links.next",
-        "Payload error in links.first",
-        "Payload error in links.last",
-        ".associated_trips: None is not of type 'array'",
-        ".parking_verification_url: None is not of type 'string'"
-    ]
-
-    unexpected_prop_regx = re.compile("\('(\w+)' was unexpected\)")
-
-    if record_type == mds.STATUS_CHANGES:
-        validator = ProviderDataValidator.StatusChanges(ref=ref)
-    elif record_type == mds.TRIPS:
-        validator = ProviderDataValidator.Trips(ref=ref)
-    else:
-        raise ValueError(f"Invalid record_type: {record_type}")
-
-    valid = {}
-    for provider in data:
-        if isinstance(provider, mds.providers.Provider):
-            print("Validating data from", provider.provider_name)
-            pages = data[provider]
-        elif isinstance(provider, Path):
-            print("Validating data from", provider)
-            pages = json.load(provider.open("r"))
-        elif isinstance(provider, str):
-            print("Validating data from", provider)
-            pages = json.load(open(provider, "r"))
-        else:
-            print("Skipping", provider)
-            continue
-
-        valid[provider] = []
-        seen = 0
-        passed = 0
-
-        # validate each page of data for this provider
-        for page in pages:
-            invalid = False
-
-            d = len(page.get("data", {}).get(record_type, []))
-            seen += d
-
-            for error in validator.validate(page):
-                description = error.describe()
-                # fail if this error message is not an exception
-                if not any([ex in description for ex in exceptions]):
-                    match = unexpected_prop_regx.search(description)
-                    if match:
-                        prop = match.group(1)
-                        print("Removing unexpected property:", prop)
-                        del error.instance[prop]
-                    else:
-                        print(description)
-                        invalid = True
-
-            if not invalid:
-                passed += d
-                valid[provider].append(page)
-
-        print(f"Validated {seen} records ({passed} passed)")
-
-    return valid
-
-
-def parse_db_env():
-    """
-    Gets the required database configuration out of the Environment.
-
-    Returns dict:
-        - user
-        - password
-        - db
-        - host
-        - port
-    """
-    try:
-        user, password = os.environ["MDS_USER"], os.environ["MDS_PASSWORD"]
-    except:
-        print("The MDS_USER or MDS_PASSWORD environment variables are not set. Exiting.")
-        exit(1)
-
-    try:
-        db = os.environ["MDS_DB"]
-    except:
-        print("The MDS_DB environment variable is not set. Exiting.")
-        exit(1)
-
-    try:
-        host = os.environ["POSTGRES_HOSTNAME"]
-    except:
-        print("The POSTGRES_HOSTNAME environment variable is not set. Exiting.")
-        exit(1)
-
-    try:
-        port = os.environ["POSTGRES_HOST_PORT"]
-    except:
-        port = 5432
-        print("No POSTGRES_HOST_PORT environment variable set, defaulting to:", port)
-
-    return { "user": user, "password": password, "db": db, "host": host, "port": port }
-
-
-def load_data(datasource, record_type, **kwargs):
-    """
-    Load :record_type: data from :datasource:, which could be:
-
-      - a dict of Provider => [pages]
-      - a list of JSON file paths
-    """
-    # db connection
-    stage_first = kwargs.get("stage_first") or 3
-    on_conflict_update = kwargs.get("on_conflict_update", False)
-    dbenv = { "stage_first": stage_first, "on_conflict_update": on_conflict_update, **parse_db_env() }
-
-    db = ProviderDataLoader(**dbenv)
-
-    for data in datasource:
-        if isinstance(data, Path) or isinstance(data, str):
-            # this is a file path
-            print(f"Loading {record_type} from", data)
-            src = data
-        elif isinstance(data, mds.providers.Provider):
-            # this is a dict payload from a Provider
-            print(f"Loading {record_type} from", data.provider_name)
-            src = datasource[data]
-
-        if record_type == mds.STATUS_CHANGES:
-            db.load_status_changes(src)
-        elif record_type == mds.TRIPS:
-            db.load_trips(src)
 
 
 def backfill(record_type, client, start_time, end_time, duration, **kwargs):
@@ -489,13 +261,17 @@ def ingest(record_type, **kwargs):
     """
     datasource = acquire_data(record_type, **kwargs)
 
-    validating = not kwargs.get("no_validate", False)
+    validating = not kwargs.get("no_validate")
     if validating:
         ref = kwargs.get("ref")
-        validated_data = validate_data(datasource, record_type, ref)
+        datasource = validate_data(datasource, record_type, ref)
     else:
         print("Skipping data validation")
-        validated_data = datasource
+
+    # clean up missing data
+    for k in [k for k in datasource.keys()]:
+        if not datasource[k] or len(datasource[k]) < 1:
+            del datasource[k]
 
     # output to files if needed
     output = kwargs.get("output")
@@ -504,14 +280,9 @@ def ingest(record_type, **kwargs):
         start_time, end_time = kwargs.get("start_time"), kwargs.get("end_time")
         output_data(output, datasource, record_type, start_time, end_time)
 
-    # clean up before loading
-    for k in [k for k in validated_data.keys()]:
-        if not validated_data[k] or len(validated_data[k]) < 1:
-            del validated_data[k]
-
-    loading = not kwargs.get("no_load", False)
-    if loading and len(validated_data) > 0:
-        load_data(validated_data, record_type, **kwargs)
+    loading = not kwargs.get("no_load")
+    if loading and len(datasource) > 0:
+        load_data(datasource, record_type, **kwargs)
 
     print(f"{record_type} complete")
 
@@ -537,7 +308,7 @@ if __name__ == "__main__":
         # finished
         exit(0)
 
-    # assert the time range parameters and parse a valid range
+    # assert the time range parameters
     if args.start_time is None and args.end_time is None:
         arg_parser.print_help()
         exit(1)
@@ -546,8 +317,10 @@ if __name__ == "__main__":
         arg_parser.print_help()
         exit(1)
 
+    # backfill mode if all 3 time parameters given
     args.backfill = all([args.start_time, args.end_time, args.duration])
 
+    # parse into a valid range
     args.start_time, args.end_time = parse_time_range(args)
 
     # acquire the Provider registry and filter based on params
@@ -558,11 +331,11 @@ if __name__ == "__main__":
         print("Downloading provider registry...")
         registry = mds.providers.get_registry(args.ref)
 
-    print(f"Acquired registry: {provider_names(registry)}")
+    print(f"Acquired registry: {', '.join(provider_names(registry))}")
 
     # filter the registry with cli args, and configure the providers that will be used
     providers = [p.configure(config, use_id=True)
-                 for p in filter_providers(registry, args.providers)]
+                 for p in mds.providers.filter(registry, args.providers)]
 
     # parse any headers from the config to a dict
     for p in providers:
@@ -572,17 +345,18 @@ if __name__ == "__main__":
 
     # initialize an API client for these providers and configuration
     client = ProviderClient(providers)
-    kwargs = vars(args)
+    kwargs = dict(vars(args))
 
+    # backfill mode
     if args.backfill:
-        start_time, end_time, duration = args.start_time, args.end_time, args.duration
-        for key in ["start_time", "end_time", "duration"]:
+        # do not forward with kwargs
+        for key in ["backfill", "start_time", "end_time", "duration"]:
             del kwargs[key]
-
         if args.status_changes:
-            backfill(mds.STATUS_CHANGES, client, start_time, end_time, duration, **kwargs)
+            backfill(mds.STATUS_CHANGES, client, args.start_time, args.end_time, args.duration, **kwargs)
         if args.trips:
-            backfill(mds.TRIPS, client, start_time, end_time, duration, **kwargs)
+            backfill(mds.TRIPS, client, args.start_time, args.end_time, args.duration, **kwargs)
+    # simple request mode
     else:
         if args.status_changes:
             ingest(mds.STATUS_CHANGES, client=client, **kwargs)
