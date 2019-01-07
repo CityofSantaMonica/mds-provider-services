@@ -57,7 +57,7 @@ def load_data(datasource, record_type, **kwargs):
     If :db:, a `ProviderDataLoader` instance, is not given then obtain connection information from the Environment.
     """
     # db connection
-    stage_first = kwargs.get("stage_first")
+    stage_first = int(kwargs.get("stage_first", False))
     on_conflict_update = bool(kwargs.get("on_conflict_update"))
     dbenv = { "stage_first": stage_first, "on_conflict_update": on_conflict_update, **db_env() }
     db = kwargs.get("db", ProviderDataLoader(**dbenv))
