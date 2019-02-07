@@ -89,7 +89,7 @@ def parse_time_range(args):
         Helper to parse different textual representations into datetime
         """
         try:
-            return datetime.fromtimestamp(int(data), timezone.utc)
+            return datetime.utcfromtimestamp(int(data))
         except:
             return dateutil.parser.parse(data)
 
