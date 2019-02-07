@@ -11,7 +11,7 @@ All fully customizable through extensive parameterization and configuration opti
 from acquire import acquire_data, provider_names
 import argparse
 from configparser import ConfigParser
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 import dateutil.parser
 import json
 from load import load_data
@@ -181,7 +181,7 @@ def parse_time_range(args):
         Helper to parse different textual representations into datetime
         """
         try:
-            return datetime.fromtimestamp(int(data), timezone.utc)
+            return datetime.utcfromtimestamp(int(data))
         except:
             return dateutil.parser.parse(data)
 
