@@ -30,9 +30,17 @@ docker-compose run db reset
 docker-compose run db init
 ```
 
+### Functions
+
+Setup postgres [functions](functions/) used in other views and calculations.
+
+```bash
+docker-compose run db functions
+```
+
 ### Migrations
 
-Run a [migration](migrate/) script with the given version number
+Run a [migration](migrate/) script with the given version number.
 
 ```bash
 docker-compose run db migrate VERSION
