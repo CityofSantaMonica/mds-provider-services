@@ -265,13 +265,13 @@ def ingest(record_type, **kwargs):
     if validating:
         ref = kwargs.get("ref")
         datasource = validate_data(datasource, record_type, ref)
+
+        # clean up missing data
+        for k in [k for k in datasource.keys()]:
+            if not datasource[k] or len(datasource[k]) < 1:
+                del datasource[k]
     else:
         print("Skipping data validation")
-
-    # clean up missing data
-    for k in [k for k in datasource.keys()]:
-        if not datasource[k] or len(datasource[k]) < 1:
-            del datasource[k]
 
     # output to files if needed
     output = kwargs.get("output")
