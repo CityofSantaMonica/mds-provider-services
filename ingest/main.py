@@ -122,6 +122,7 @@ def setup_cli():
     )
     parser.add_argument(
         "--stage_first",
+        default=True,
         help="False to append records directly to the data tables. True to stage in a temp table before UPSERT,\
         or an int to stage in a temp table before UPSERT, with increasing randomness to the temp table name."
     )
