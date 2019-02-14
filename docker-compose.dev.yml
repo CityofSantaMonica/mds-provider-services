@@ -14,8 +14,7 @@ services:
     ports:
       - "${NB_HOST_PORT}:8888"
     volumes:
-      - ./analytics:/home/${NB_USER}/work/mds/analytics
-      - data:/home/${NB_USER}/work/mds/data
+      - ./analytics/notebooks:/usr/src/mds/notebooks
 
   client:
     build: ./client
@@ -33,14 +32,10 @@ services:
     container_name: mds_provider_fake
     environment:
       - MDS_BOUNDARY
-      - NB_USER
-      - NB_UID
-      - NB_GID
     ports:
       - "${NB_HOST_PORT}:8888"
-    user: root
     volumes:
-      - data:/home/${NB_USER}/work/mds/data
+      - data:/usr/src/mds/data
 
   db:
     build: ./db
@@ -67,9 +62,8 @@ services:
       - MDS_PASSWORD
     ports:
       - "${NB_HOST_PORT}:8888"
-    user: root
     volumes:
-      - data:/home/${NB_USER}/work/mds/data
+      - data:/usr/src/mds/data
 
   server:
     build: ./server

@@ -77,7 +77,7 @@ See the `README` file in each service folder for more details.
 `analytics`, `fake` and `ingest` all come with Jupyter Notebook servers that can be run locally:
 
 ```bash
-bin/notebook.sh SERVICE
+bin/notebook.sh SERVICE [ARGS]
 ```
 
 Now browse to `http://localhost:NB_HOST_PORT` and append the `/?token=<token>` param shown in the Notebook container startup output.
@@ -87,6 +87,8 @@ Note your `NB_HOST_PORT` may be different than the default shown in the containe
 Also note that all of the services make use of the *same* `NB_HOST_PORT` environment variable, and so they cannot be run at the same time!
 
 Modify `docker-compose.yml` if you need to use different ports to run Notebook servers on multiple services simultaneously.
+
+Optional `[ARGS]` will be passed directly to the `jupyter notebook` startup command. See [bin/notebook.sh](bin/notebook.sh) for details.
 
 [compose]: https://docs.docker.com/compose/overview/
 [docker]: https://www.docker.com/
