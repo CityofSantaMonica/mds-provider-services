@@ -51,11 +51,7 @@ def status_change_conflict_update():
     """
     Returns a tuple (condition, actions) for generating the status_changes ON CONFLICT UPDATE statement.
     """
-<<<<<<< HEAD
     condition = "ON CONSTRAINT unique_provider_device_event"
-=======
-    condition = "unique_provider_device_event"
->>>>>>> prepare and inject our ON CONFLICT UPDATE params
     actions = {
         "event_type": "cast(EXCLUDED.event_type as event_types)",
         "event_type_reason": "cast(EXCLUDED.event_type_reason as event_type_reasons)",
@@ -71,11 +67,7 @@ def trips_conflict_update():
     """
     Returns a tuple (condition, actions) for generating the trips ON CONFLICT UPDATE statement.
     """
-<<<<<<< HEAD
     condition = "ON CONSTRAINT pk_trip"
-=======
-    condition = "pk_trip"
->>>>>>> prepare and inject our ON CONFLICT UPDATE params
     actions = {
         "trip_duration": "EXCLUDED.trip_duration",
         "trip_distance": "EXCLUDED.trip_distance",
