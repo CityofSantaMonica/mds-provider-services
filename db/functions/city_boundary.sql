@@ -1,4 +1,4 @@
-CREATE OR REPLACE FUNCTION public.csm_city_boundary()
+CREATE OR REPLACE FUNCTION csm_city_boundary()
     RETURNS geometry
     LANGUAGE 'sql'
     IMMUTABLE PARALLEL SAFE

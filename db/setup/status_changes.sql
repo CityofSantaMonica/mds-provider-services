@@ -1,6 +1,6 @@
-DROP TABLE IF EXISTS public.status_changes CASCADE;
+DROP TABLE IF EXISTS status_changes CASCADE;
 
-CREATE TABLE public.status_changes (
+CREATE TABLE status_changes (
     provider_id UUID NOT NULL,
     provider_name TEXT NOT NULL,
     device_id UUID NOT NULL,
@@ -15,7 +15,7 @@ CREATE TABLE public.status_changes (
     associated_trips UUID[]
 );
 
-ALTER TABLE public.status_changes
+ALTER TABLE status_changes
     ADD CONSTRAINT unique_provider_device_event
     UNIQUE (provider_id,
             device_id,

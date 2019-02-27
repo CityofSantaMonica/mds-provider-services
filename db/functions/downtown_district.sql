@@ -1,4 +1,4 @@
-CREATE OR REPLACE FUNCTION public.csm_downtown_district()
+CREATE OR REPLACE FUNCTION csm_downtown_district()
     RETURNS geometry
     LANGUAGE 'sql'
     IMMUTABLE PARALLEL SAFE
