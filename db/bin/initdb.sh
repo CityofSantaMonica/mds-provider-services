@@ -11,4 +11,5 @@ psql -v ON_ERROR_STOP=1 \
     --dbname "$MDS_DB" \
     --file setup/enums.sql \
     --file setup/trips.sql \
-    --file setup/status_changes.sql
+    --file setup/status_changes.sql \
+    --file setup/jobs.sql
