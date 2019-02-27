@@ -16,7 +16,8 @@ CREATE TABLE trips (
     end_time timestamptz NOT NULL,
     parking_verification_url TEXT,
     standard_cost INT,
-    actual_cost INT
+    actual_cost INT,
+    sequence_id bigserial NOT NULL,
 );
 
 ALTER TABLE trips

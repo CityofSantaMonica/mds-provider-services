@@ -1,23 +1,23 @@
 #!/bin/bash
 set -e
 
-# setup the MDS route and trip views
+# setup the MDS trip route tables and processing jobs
 
 export PGUSER=$MDS_USER
 export PGPASSWORD=$MDS_PASSWORD
 
 if [[ "$1" == "refresh" ]]; then
-    echo "refreshing route_points, csm_routes"
+    echo "refreshing trip routes"
     psql -v ON_ERROR_STOP=1 --host "$POSTGRES_HOSTNAME" --dbname "$MDS_DB" << EOSQL
-    REFRESH MATERIALIZED VIEW public.route_points;
-    REFRESH MATERIALIZED VIEW public.csm_routes;
+    SELECT * FROM csm_process_trip_routes();
 EOSQL
 else
-    echo "rebuilding trips"
+    echo "rebuilding trip route tables"
     psql -v ON_ERROR_STOP=1 \
         --host "$POSTGRES_HOSTNAME" \
         --dbname "$MDS_DB" \
         --file trips/route_points.sql \
         --file trips/routes.sql \
-        --file trips/csm.sql
+        --file trips/process_trip_routes.sql \
+        --file trips/csm_trips.sql
 fi
