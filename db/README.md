@@ -52,15 +52,15 @@ Where `VERSION` is a version number like `x.y.z`.
 
 Create the [`availability`](availability/) view and associated infrastructure.
 
+[Trips](#trips) must be configured first.
+
 #### Run the intialization scripts
 
 ```bash
 docker-compose run db availability
 ```
 
-#### Refresh the materialized view
-
-From the current contents of the `status_changes` table.
+#### Refresh the materialized views
 
 ```bash
 docker-compose run db availability refresh
@@ -94,11 +94,7 @@ Create additional [`trips`](trips/) and routes views.
 docker-compose run db trips
 ```
 
-#### Refresh the materialized views
-
-From the current contents of the `trips` table.
-
-First refreshes `route_points`, and then `csm_routes`:
+#### Run the incremental processing job
 
 ```bash
 docker-compose run db trips refresh
