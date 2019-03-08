@@ -1,6 +1,6 @@
-DROP VIEW IF EXISTS csm_trips CASCADE;
+DROP MATERIALIZED VIEW IF EXISTS csm_trips CASCADE;
 
-CREATE VIEW csm_trips AS
+CREATE MATERIALIZED VIEW csm_trips AS
 
 SELECT
     trips.provider_id,
@@ -24,4 +24,5 @@ FROM
 WHERE
     routes.in_csm_points > 0
 
+WITH NO DATA
 ;
