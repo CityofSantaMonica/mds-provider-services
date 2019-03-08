@@ -51,13 +51,14 @@ def status_change_conflict_update():
     """
     Returns a tuple (condition, actions) for generating the status_changes ON CONFLICT UPDATE statement.
     """
-    condition = "ON CONSTRAINT unique_provider_device_event"
+    condition = "ON CONSTRAINT provider_device_event"
     actions = {
         "event_type": "cast(EXCLUDED.event_type as event_types)",
         "event_type_reason": "cast(EXCLUDED.event_type_reason as event_type_reasons)",
         "event_location": "cast(EXCLUDED.event_location as jsonb)",
         "battery_pct": "EXCLUDED.battery_pct",
-        "associated_trips": "cast(EXCLUDED.associated_trips as uuid[])"
+        "associated_trips": "cast(EXCLUDED.associated_trips as uuid[])",
+        "sequence_id": "EXCLUDED.sequence_id"
     }
 
     return (condition, actions)
@@ -77,7 +78,8 @@ def trips_conflict_update():
         "end_time": "EXCLUDED.end_time",
         "parking_verification_url": "EXCLUDED.parking_verification_url",
         "standard_cost": "EXCLUDED.standard_cost",
-        "actual_cost": "EXCLUDED.actual_cost"
+        "actual_cost": "EXCLUDED.actual_cost",
+        "sequence_id": "EXCLUDED.sequence_id"
     }
 
     return (condition, actions)
