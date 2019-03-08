@@ -47,6 +47,42 @@ def db_env():
     return { "user": user, "password": password, "db": db, "host": host, "port": port }
 
 
+def status_change_conflict_update():
+    """
+    Returns a tuple (condition, actions) for generating the status_changes ON CONFLICT UPDATE statement.
+    """
+    condition = "ON CONSTRAINT unique_provider_device_event"
+    actions = {
+        "event_type": "cast(EXCLUDED.event_type as event_types)",
+        "event_type_reason": "cast(EXCLUDED.event_type_reason as event_type_reasons)",
+        "event_location": "cast(EXCLUDED.event_location as jsonb)",
+        "battery_pct": "EXCLUDED.battery_pct",
+        "associated_trips": "cast(EXCLUDED.associated_trips as uuid[])"
+    }
+
+    return (condition, actions)
+
+
+def trips_conflict_update():
+    """
+    Returns a tuple (condition, actions) for generating the trips ON CONFLICT UPDATE statement.
+    """
+    condition = "ON CONSTRAINT pk_trip"
+    actions = {
+        "trip_duration": "EXCLUDED.trip_duration",
+        "trip_distance": "EXCLUDED.trip_distance",
+        "route": "cast(EXCLUDED.route as jsonb)",
+        "accuracy": "EXCLUDED.accuracy",
+        "start_time": "EXCLUDED.start_time",
+        "end_time": "EXCLUDED.end_time",
+        "parking_verification_url": "EXCLUDED.parking_verification_url",
+        "standard_cost": "EXCLUDED.standard_cost",
+        "actual_cost": "EXCLUDED.actual_cost"
+    }
+
+    return (condition, actions)
+
+
 def load_data(datasource, record_type, **kwargs):
     """
     Insert data into a database from:
@@ -59,7 +95,7 @@ def load_data(datasource, record_type, **kwargs):
     # db connection
     stage_first = int(kwargs.get("stage_first"))
     on_conflict_update = bool(kwargs.get("on_conflict_update"))
-    dbenv = { "stage_first": stage_first, "on_conflict_update": on_conflict_update, **db_env() }
+    dbenv = { "stage_first": stage_first, **db_env() }
     db = kwargs.get("db", ProviderDataLoader(**dbenv))
 
     for data in datasource:
@@ -73,6 +109,8 @@ def load_data(datasource, record_type, **kwargs):
             src = datasource[data]
 
         if record_type == mds.STATUS_CHANGES:
-            db.load_status_changes(src)
+            conflict_update = status_changes_conflict_update() if on_conflict_update else None
+            db.load_status_changes(src, on_conflict_update=conflict_update)
         elif record_type == mds.TRIPS:
-            db.load_trips(src)
+            conflict_update = trips_conflict_update() if on_conflict_update else None
+            db.load_trips(src, on_conflict_update=conflict_update)
