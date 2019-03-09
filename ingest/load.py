@@ -51,7 +51,7 @@ def status_change_conflict_update():
     """
     Returns a tuple (condition, actions) for generating the status_changes ON CONFLICT UPDATE statement.
     """
-    condition = "ON CONSTRAINT provider_device_event"
+    condition = "ON CONSTRAINT unique_event"
     actions = {
         "event_type": "cast(EXCLUDED.event_type as event_types)",
         "event_type_reason": "cast(EXCLUDED.event_type_reason as event_type_reasons)",
