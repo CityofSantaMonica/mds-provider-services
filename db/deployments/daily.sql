@@ -1,26 +1,25 @@
-DROP VIEW IF EXISTS public.csm_deployments_daily CASCADE;
+DROP VIEW IF EXISTS deployments_daily CASCADE;
 
-CREATE VIEW public.csm_deployments_daily AS
+CREATE VIEW deployments_daily AS
 
 SELECT
     provider_name,
     vehicle_type,
     date_trunc('day', event_time_local) AS event_day,
-    count(DISTINCT device_id) AS unique_devices,
-    count(*) AS total_deployments,
-    round(count(*) / count(DISTINCT device_id)::numeric, 2) AS deploys_per_device,
-    count(DISTINCT date_trunc('hour', event_time_local)) AS hours_active,
-    round(count(*) / count(DISTINCT date_trunc('hour', event_time_local))::numeric, 2) AS deploys_per_hour,
-    round(count(DISTINCT device_id) / count(DISTINCT date_trunc('hour', event_time_local))::numeric, 2) AS devices_per_hour,
-    count(*) filter (where downtown_deployment) AS downtown_deployments,
-    count(*) filter (where downtown_deployment = false) AS non_downtown_deployments,
-    round((count(*) filter (where downtown_deployment))::numeric / (count(*) filter (where downtown_deployment = false)), 2) AS downtown_vs_non_downtown,
-    round((count(*) filter (where downtown_deployment))::numeric / count(*), 2) AS downtown_vs_all
+    count(distinct device_id) AS distinct_devices,
+    count(*) AS deployments,
+    round(count(*) / count(distinct device_id)::numeric, 2) AS deploys_per_device,
+    count(distinct date_trunc('hour', event_time_local)) AS hours_active,
+    round(count(*) / count(distinct date_trunc('hour', event_time_local))::numeric, 2) AS deploys_per_hour,
+    round(count(distinct device_id) / count(distinct date_trunc('hour', event_time_local))::numeric, 2) AS devices_per_hour,
+    count(*) filter (where downtown) AS downtown_deployments,
+    count(*) filter (where not downtown) AS non_downtown_deployments,
+    round((count(*) filter (where downtown))::numeric / count(*), 2) AS downtown_pct
+    round((count(*) filter (where not downtown))::numeric / count(*), 2) AS non_downtown_pct
 FROM
-    csm_deployments
+    deployments
 GROUP BY
-    provider_name, event_day, vehicle_type
+    provider_name, date_trunc('day', event_time_local), vehicle_type
 ORDER BY
-    provider_name, vehicle_type, event_day DESC
-
+    event_day DESC, provider_name, vehicle_type
 ;

@@ -16,8 +16,6 @@ else
         --host "$POSTGRES_HOSTNAME" \
         --dbname "$MDS_DB" \
         --file deployments/deployments.sql \
-        --file deployments/csm.sql \
         --file deployments/daily.sql \
-        --file deployments/weekly.sql \
-        --file deployments/total.sql
+        --file deployments/weekly.sql
 fi
