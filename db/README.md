@@ -17,10 +17,9 @@ MDS_USER=mds_provider
 MDS_PASSWORD=mds_provider_password
 ```
 
-## Setup scripts
+## Container commands
 
-Run the setup scripts from within the running container directly, or by
-using the container in executable form with Compose.
+This container comes with a number of sub-commands for interacting with a database using the configured environment.
 
 ### Initialize the database from scratch
 
@@ -40,7 +39,7 @@ docker-compose run db functions
 
 ### Migrations
 
-Run a [migration](migrate/) script with the given version number.
+Run a [migration](migrations/) script with the given version number.
 
 ```bash
 docker-compose run db migrate VERSION
