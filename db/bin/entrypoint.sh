@@ -18,11 +18,11 @@ done
 >&2 echo "$POSTGRES_HOSTNAME is available"
 
 case $sub in
-    availability) cmd="bin/availability.sh $args" ;;
+    avail|availability) cmd="bin/availability.sh $args" ;;
     deployments) cmd="bin/deployments.sh $args" ;;
     functions) cmd="bin/functions.sh $args" ;;
     init) cmd="bin/initdb.sh $args" ;;
-    migrate) cmd="bin/migrate.sh $args" ;;
+    migrate|migrations) cmd="bin/migrations.sh $args" ;;
     reset) cmd="bin/reset.sh $args" ;;
     routes|trips) cmd="bin/trips.sh $args" ;;
 esac

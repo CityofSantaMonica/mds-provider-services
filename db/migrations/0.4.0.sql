@@ -1,21 +1,34 @@
+CREATE TABLE migrations (
+    version text primary key,
+    date timestamptz not null,
+    sequence_id bigserial not null
+);
+
+CREATE TABLE jobs (
+    name text primary key,
+    src_table text not null,
+    src_sequence text not null,
+    last_processed_id bigint default 0
+);
+
 ALTER TABLE status_changes
     RENAME TO status_changes_030
 ;
 
 CREATE TABLE status_changes (
-    provider_id uuid NOT NULL,
-    provider_name text NOT NULL,
-    device_id uuid NOT NULL,
-    vehicle_id text NOT NULL,
-    vehicle_type vehicle_types NOT NULL,
-    propulsion_type propulsion_types[] NOT NULL,
-    event_type event_types NOT NULL,
-    event_type_reason event_type_reasons NOT NULL,
-    event_time timestamp with time zone NOT NULL,
-    event_location jsonb NOT NULL,
+    provider_id uuid not null,
+    provider_name text not null,
+    device_id uuid not null,
+    vehicle_id text not null,
+    vehicle_type vehicle_types not null,
+    propulsion_type propulsion_types[] not null,
+    event_type event_types not null,
+    event_type_reason event_type_reasons not null,
+    event_time timestamptz not null,
+    event_location jsonb not null,
     battery_pct double precision,
     associated_trips uuid[],
-    sequence_id bigserial NOT NULL,
+    sequence_id bigserial not null,
     CONSTRAINT unique_event UNIQUE (provider_id, device_id, event_type, event_type_reason, event_time)
 );
 
@@ -59,23 +72,23 @@ ALTER TABLE trips
 ;
 
 CREATE TABLE trips (
-    provider_id uuid NOT NULL,
-    provider_name text NOT NULL,
-    device_id uuid NOT NULL,
-    vehicle_id text NOT NULL,
-    vehicle_type vehicle_types NOT NULL,
-    propulsion_type propulsion_types[] NOT NULL,
-    trip_id uuid NOT NULL,
-    trip_duration integer NOT NULL,
-    trip_distance integer NOT NULL,
-    route jsonb NOT NULL,
-    accuracy integer NOT NULL,
-    start_time timestamp with time zone NOT NULL,
-    end_time timestamp with time zone NOT NULL,
+    provider_id uuid not null,
+    provider_name text not null,
+    device_id uuid not null,
+    vehicle_id text not null,
+    vehicle_type vehicle_types not null,
+    propulsion_type propulsion_types[] not null,
+    trip_id uuid not null,
+    trip_duration integer not null,
+    trip_distance integer not null,
+    route jsonb not null,
+    accuracy integer not null,
+    start_time timestamptz not null,
+    end_time timestamptz not null,
     parking_verification_url text,
     standard_cost integer,
     actual_cost integer,
-    sequence_id bigserial NOT NULL,
+    sequence_id bigserial not null,
     primary key (provider_id, trip_id)
 );
 
@@ -120,4 +133,8 @@ SELECT
     actual_cost
 FROM
     trips_030
+;
+
+INSERT INTO migrations (version, date)
+VALUES ("0.4.0", now())
 ;

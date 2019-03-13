@@ -6,7 +6,7 @@ set -e
 export PGUSER=$MDS_USER
 export PGPASSWORD=$MDS_PASSWORD
 
-file="migrate/$1.sql"
+file="migrations/$1.sql"
 
 if [[ -e "$file" ]]; then
     psql -v ON_ERROR_STOP=1 \

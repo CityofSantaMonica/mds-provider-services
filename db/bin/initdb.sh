@@ -12,4 +12,5 @@ psql -v ON_ERROR_STOP=1 \
     --file setup/enums.sql \
     --file setup/trips.sql \
     --file setup/status_changes.sql \
-    --file setup/jobs.sql
+    --file setup/jobs.sql \
+    --file setup/migrations.sql
