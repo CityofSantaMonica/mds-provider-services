@@ -136,5 +136,5 @@ FROM
 ;
 
 INSERT INTO migrations (version, date)
-VALUES ("0.4.0", now())
+VALUES ('0.4.0', now())
 ;
