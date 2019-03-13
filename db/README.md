@@ -4,7 +4,7 @@ Work with a MDS `provider` Postgres database.
 
 ## Configuration
 
-This container uses the following environment variables to connect to the MDS database:
+This container uses the following [environment variables][env] to connect to the MDS database:
 
 ```bash
 POSTGRES_HOSTNAME=server
@@ -98,3 +98,47 @@ docker-compose run db trips
 ```bash
 docker-compose run db trips refresh
 ```
+
+### `psql`
+
+Pass through to [`psql`][psql] running in the container against `$MDS_DB` as `$MDS_USER`.
+
+#### Interactive prompt
+
+```bash
+$ docker-compose run db psql
+
+server is available
+psql <version info>
+Type "help" for help.
+
+mds_provider=> help
+
+You are using psql, the command-line interface to PostgreSQL.
+Type:  \copyright for distribution terms
+       \h for help with SQL commands
+       \? for help with psql commands
+       \g or terminate with semicolon to execute query
+       \q to quit
+
+mds_provider=>
+```
+
+#### Query/command
+
+```bash
+$ docker-compose run db psql -c "select distinct provider_name from trips;"
+
+server is available
+ provider_name
+---------------
+ bird
+ Lime
+ JUMP
+ Lyft
+(4 rows)
+```
+
+
+[env]: https://github.com/CityofSantaMonica/mds-provider-services#1-create-an-env-file
+[psql]: https://www.postgresql.org/docs/current/app-psql.html

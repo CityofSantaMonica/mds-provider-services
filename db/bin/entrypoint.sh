@@ -23,6 +23,7 @@ case $sub in
     functions) cmd="bin/functions.sh $args" ;;
     init) cmd="bin/initdb.sh $args" ;;
     migrate|migrations) cmd="bin/migrations.sh $args" ;;
+    psql) cmd="bin/psql.sh $args" ;;
     reset) cmd="bin/reset.sh $args" ;;
     routes|trips) cmd="bin/trips.sh $args" ;;
 esac
