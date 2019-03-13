@@ -47,7 +47,7 @@ def db_env():
     return { "user": user, "password": password, "db": db, "host": host, "port": port }
 
 
-def status_change_conflict_update():
+def status_changes_conflict_update():
     """
     Returns a tuple (condition, actions) for generating the status_changes ON CONFLICT UPDATE statement.
     """
