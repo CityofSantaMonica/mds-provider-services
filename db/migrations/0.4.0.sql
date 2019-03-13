@@ -89,7 +89,7 @@ CREATE TABLE trips (
     standard_cost integer,
     actual_cost integer,
     sequence_id bigserial not null,
-    primary key (provider_id, trip_id)
+    CONSTRAINT pk_trips PRIMARY KEY (provider_id, trip_id)
 );
 
 CREATE INDEX trips_sequence_id_idx

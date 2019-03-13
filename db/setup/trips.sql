@@ -1,25 +1,26 @@
 DROP TABLE IF EXISTS trips CASCADE;
 
 CREATE TABLE trips (
-    provider_id UUID NOT NULL,
-    provider_name TEXT NOT NULL,
-    device_id UUID NOT NULL,
-    vehicle_id TEXT NOT NULL,
-    vehicle_type vehicle_types NOT NULL,
-    propulsion_type propulsion_types[] NOT NULL,
-    trip_id UUID NOT NULL,
-    trip_duration INT NOT NULL,
-    trip_distance INT NOT NULL,
-    route jsonb NOT NULL,
-    accuracy INT NOT NULL,
-    start_time timestamptz NOT NULL,
-    end_time timestamptz NOT NULL,
-    parking_verification_url TEXT,
-    standard_cost INT,
-    actual_cost INT,
-    sequence_id bigserial NOT NULL,
+    provider_id uuid not null,
+    provider_name text not null,
+    device_id uuid not null,
+    vehicle_id text not null,
+    vehicle_type vehicle_types not null,
+    propulsion_type propulsion_types[] not null,
+    trip_id uuid not null,
+    trip_duration integer not null,
+    trip_distance integer not null,
+    route jsonb not null,
+    accuracy integer not null,
+    start_time timestamptz not null,
+    end_time timestamptz not null,
+    parking_verification_url text,
+    standard_cost integer,
+    actual_cost integer,
+    sequence_id bigserial not null,
+    CONSTRAINT pk_trips PRIMARY KEY (provider_id, trip_id)
 );
 
-ALTER TABLE trips
-    ADD CONSTRAINT pk_trip
-    PRIMARY KEY (provider_id, trip_id);
+CREATE INDEX trips_sequence_id_idx
+    ON trips USING brin (sequence_id)
+;

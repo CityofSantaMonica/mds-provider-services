@@ -68,7 +68,7 @@ def trips_conflict_update():
     """
     Returns a tuple (condition, actions) for generating the trips ON CONFLICT UPDATE statement.
     """
-    condition = "ON CONSTRAINT pk_trip"
+    condition = "ON CONSTRAINT pk_trips"
     actions = {
         "trip_duration": "EXCLUDED.trip_duration",
         "trip_distance": "EXCLUDED.trip_distance",
