@@ -61,7 +61,7 @@ BEGIN
         last_csm_timepoint,
         timepoints
     )
-    SELECT
+    (SELECT
         provider_id,
         trip_id,
         count(*) as total_points,
@@ -79,6 +79,20 @@ BEGIN
     WHERE
         route_points.sequence_id BETWEEN start_id AND end_id
     GROUP BY
-        provider_id, trip_id;
+        provider_id, trip_id
+    )
+    ON CONFLICT (provider_id, trip_id) DO UPDATE SET
+        total_points = EXCLUDED.total_points,
+        in_csm_points = EXCLUDED.in_csm_points,
+        in_dtsm_points = EXCLUDED.in_dtsm_points,
+        route_line = EXCLUDED.route_line,
+        first_csm_geopoint = EXCLUDED.first_csm_geopoint,
+        last_csm_geopoint = EXCLUDED.last_csm_geopoint,
+        geopoints = EXCLUDED.geopoints,
+        first_csm_timepoint = EXCLUDED.first_csm_timepoint,
+        last_csm_timepoint = EXCLUDED.last_csm_timepoint,
+        timepoints = EXCLUDED.timepoints,
+        sequence_id = EXCLUDED.sequence_id
+    ;
 END;
 $function$;
