@@ -5,7 +5,7 @@ CREATE VIEW deployments AS
 SELECT
     *,
     csm_local_timestamp(event_time) AS event_time_local,
-    st_contains(csm_downtown_district(), event_location) as downtown,
+    st_contains(csm_downtown_district(), event_location) as downtown
 FROM
     device_event_timeline
 WHERE

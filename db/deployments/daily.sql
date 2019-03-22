@@ -14,7 +14,7 @@ SELECT
     round(count(distinct device_id) / count(distinct date_trunc('hour', event_time_local))::numeric, 2) AS devices_per_hour,
     count(*) filter (where downtown) AS downtown_deployments,
     count(*) filter (where not downtown) AS non_downtown_deployments,
-    round((count(*) filter (where downtown))::numeric / count(*), 2) AS downtown_pct
+    round((count(*) filter (where downtown))::numeric / count(*), 2) AS downtown_pct,
     round((count(*) filter (where not downtown))::numeric / count(*), 2) AS non_downtown_pct
 FROM
     deployments
