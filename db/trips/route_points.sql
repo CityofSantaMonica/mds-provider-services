@@ -19,7 +19,8 @@ CREATE TABLE route_points (
     timepoint timestamptz,
     in_csm boolean,
     in_dtsm boolean,
-    sequence_id bigserial NOT NULL
+    sequence_id bigserial NOT NULL,
+    CONSTRAINT unique_route_point UNIQUE (provider_id, trip_id, geopoint, timepoint)
 );
 
 CREATE INDEX route_points_sequence_id_idx
@@ -42,21 +43,33 @@ BEGIN
     IF start_id > end_id THEN RETURN; END IF;
 
     /* process the trips -> route points */
-    INSERT INTO route_points
-    (provider_id, trip_id, feature, feature_timestamp, geopoint, timepoint, in_csm, in_dtsm)
-      SELECT
-            trips.provider_id,
-            trips.trip_id,
-            coords.f as feature,
-            coords.ts as feature_timestamp,
-            csm_parse_feature_geom(coords.f) as geopoint,
-            to_timestamp(coords.ts) as timepoint,
-            st_contains(csm_city_boundary(), csm_parse_feature_geom(coords.f)) as in_csm,
-            st_contains(csm_downtown_district(), csm_parse_feature_geom(coords.f)) as in_dtsm
-        FROM trips CROSS JOIN LATERAL (
+    INSERT INTO route_points (
+        provider_id,
+        trip_id,
+        feature,
+        feature_timestamp,
+        geopoint,
+        timepoint,
+        in_csm,
+        in_dtsm
+    )
+    (SELECT
+        trips.provider_id,
+        trips.trip_id,
+        coords.f as feature,
+        coords.ts as feature_timestamp,
+        csm_parse_feature_geom(coords.f) as geopoint,
+        to_timestamp(coords.ts) as timepoint,
+        st_contains(csm_city_boundary(), csm_parse_feature_geom(coords.f)) as in_csm,
+        st_contains(csm_downtown_district(), csm_parse_feature_geom(coords.f)) as in_dtsm
+    FROM
+        trips CROSS JOIN LATERAL (
             SELECT f, (f -> 'properties' ->> 'timestamp')::numeric as ts
             FROM jsonb_array_elements(trips.route -> 'features') f
         ) coords
-      WHERE trips.sequence_id BETWEEN start_id AND end_id;
+    WHERE
+        trips.sequence_id BETWEEN start_id AND end_id
+    )
+    ON CONFLICT (provider_id, trip_id, geopoint, timepoint) DO NOTHING;
 END;
 $function$;
