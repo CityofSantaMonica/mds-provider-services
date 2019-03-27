@@ -101,9 +101,11 @@ docker-compose run db trips refresh
 
 ### `psql`
 
-Pass through to [`psql`][psql] running in the container against `$MDS_DB` as `$MDS_USER`.
+Run [`psql`][psql] commands in the container against `$MDS_DB` as `$MDS_USER`.
 
 #### Interactive prompt
+
+Enter into the `psql` prompt:
 
 ```bash
 $ docker-compose run db psql
@@ -126,8 +128,10 @@ mds_provider=>
 
 #### Query/command
 
+Run a single query or command (e.g. the `psql --command` option):
+
 ```bash
-$ docker-compose run db psql -c "select distinct provider_name from trips;"
+$ docker-compose run db query "select distinct provider_name from trips;"
 
 server is available
  provider_name
@@ -139,6 +143,18 @@ server is available
 (4 rows)
 ```
 
+#### File
+
+Execute queries or commands from a file (e.g. the `psql --file` option):
+
+```bash
+$ docker-compose run db file trips/daily.sql
+
+server is available
+psql:trips/daily.sql:1: NOTICE:  view "trips_daily" does not exist, skipping
+DROP VIEW
+CREATE VIEW
+```
 
 [env]: https://github.com/CityofSantaMonica/mds-provider-services#1-create-an-env-file
 [psql]: https://www.postgresql.org/docs/current/app-psql.html

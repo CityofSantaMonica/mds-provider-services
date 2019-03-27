@@ -3,9 +3,6 @@ set -e
 
 # setup the MDS deployments views
 
-export PGUSER=$MDS_USER
-export PGPASSWORD=$MDS_PASSWORD
-
 echo "rebuilding deployment views"
 
 psql -v ON_ERROR_STOP=1 \

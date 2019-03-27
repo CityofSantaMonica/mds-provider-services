@@ -7,7 +7,6 @@ set -e
 cmd="$@"
 sub="$1"
 shift
-args="$@"
 
 until PGPASSWORD=$POSTGRES_PASSWORD PGUSER=$POSTGRES_USER \
       psql -h "$POSTGRES_HOSTNAME" -d "$POSTGRES_DB" -c '\q'; do
@@ -18,14 +17,19 @@ done
 >&2 echo "$POSTGRES_HOSTNAME is available"
 
 case $sub in
-    avail|availability) cmd="bin/availability.sh $args" ;;
-    deployments) cmd="bin/deployments.sh $args" ;;
-    functions) cmd="bin/functions.sh $args" ;;
-    init) cmd="bin/initdb.sh $args" ;;
-    migrate|migrations) cmd="bin/migrations.sh $args" ;;
-    psql) cmd="bin/psql.sh $args" ;;
-    reset) cmd="bin/reset.sh $args" ;;
-    routes|trips) cmd="bin/trips.sh $args" ;;
+    avail|availability) cmd="bin/availability.sh" ;;
+    deployments) cmd="bin/deployments.sh" ;;
+    file) cmd="psql -v ON_ERROR_STOP=1 --host ${POSTGRES_HOSTNAME} --dbname ${MDS_DB} --file" ;;
+    functions) cmd="bin/functions.sh" ;;
+    init) cmd="bin/initdb.sh" ;;
+    migrate|migrations) cmd="bin/migrations.sh" ;;
+    psql) cmd="psql -v ON_ERROR_STOP=1 --host ${POSTGRES_HOSTNAME} --dbname ${MDS_DB}" ;;
+    query) cmd="psql -v ON_ERROR_STOP=1 --host ${POSTGRES_HOSTNAME} --dbname ${MDS_DB} --command" ;;
+    reset) cmd="bin/reset.sh" ;;
+    routes|trips) cmd="bin/trips.sh" ;;
 esac
 
-exec $cmd
+export PGUSER=$MDS_USER
+export PGPASSWORD=$MDS_PASSWORD
+
+exec $cmd "$@"
