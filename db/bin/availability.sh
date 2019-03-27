@@ -20,5 +20,8 @@ else
         --file availability/active_windows.sql \
         --file availability/inactive_windows.sql \
         --file availability/csm_availability.sql \
-        --file availability/lost_devices.sql
+        --file availability/lost_devices.sql \
+        --file availability/lost_7_days.sql \
+        --file availability/lost_31_days.sql \
+        --file availability/lost_6_months.sql
 fi
