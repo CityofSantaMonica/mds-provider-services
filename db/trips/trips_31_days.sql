@@ -9,7 +9,10 @@ select
 from
     trips_daily
 where
-    day in (select distinct day from trips_daily order by day desc limit 31)
-    and day < date_trunc('day', csm_local_timestamp(now() - interval '1 day'))
+    day in (
+        select distinct day
+        from trips_daily
+        order by day desc limit 31
+    )
 order by
     provider, day;

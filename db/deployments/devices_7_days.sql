@@ -9,7 +9,10 @@ select
 from
     deployments_daily
 where
-    event_day in (select distinct event_day from deployments_daily order by event_day desc limit 7)
-    and event_day < date_trunc('day', csm_local_timestamp(now() - interval '1 day'))
+    event_day in (
+        select distinct event_day
+        from deployments_daily
+        order by event_day desc limit 7
+    )
 order by
     provider, day;
