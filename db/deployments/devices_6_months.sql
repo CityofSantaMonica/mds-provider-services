@@ -9,8 +9,11 @@ select
 from
     deployments_daily
 where
-    event_day in (select distinct event_day from deployments_daily order by event_day desc limit 180)
-    and event_day < date_trunc('day', csm_local_timestamp(now() - interval '1 day'))
+    date_trunc('month', event_day) in (
+        select distinct date_trunc('month', event_day) as month
+        from deployments_daily
+        order by month desc limit 6
+    )
 group by
     provider_name, vehicle_type, date_trunc('month', event_day)
 order by

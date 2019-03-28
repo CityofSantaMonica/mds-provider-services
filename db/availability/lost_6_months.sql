@@ -9,8 +9,11 @@ select
 from
     lost_devices
 where
-    date_trunc('day', start_time_local) in (select distinct date_trunc('day', start_time_local) as day from lost_devices order by day desc limit 180) 
-    and date_trunc('day', start_time_local) < date_trunc('day', csm_local_timestamp(now() - interval '1 day'))
+    date_trunc('month', start_time_local) in (
+        select distinct date_trunc('month', start_time_local) as month
+        from lost_devices
+        order by month desc limit 6
+    )
 group by
     provider_name, vehicle_type, date_trunc('month', start_time_local)
 order by

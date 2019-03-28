@@ -9,8 +9,11 @@ select
 from
     trips_daily
 where
-    day in (select distinct day from trips_daily order by day desc limit 180) 
-    and day < date_trunc('day', csm_local_timestamp(now() - interval '1 day'))
+    date_trunc('month', day) in (
+        select distinct date_trunc('month', day) as month
+        from trips_daily
+        order by month desc limit 6
+    )
 group by
     provider_name, vehicle_type, date_trunc('month', day)
 order by
