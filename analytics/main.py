@@ -133,7 +133,7 @@ def availability(provider_name, vehicle_type, args):
 
     q = query.Availability(args.start, args.end,
         vehicle_types=vehicle_type,
-        table="csm_availability",
+        table="csm_availability_windows",
         local=args.local, debug=True)
 
     results = {}
@@ -157,7 +157,7 @@ def availability(provider_name, vehicle_type, args):
 
         _q = query.Availability(start, end,
             vehicle_types=vehicle_type,
-            table="csm_availability",
+            table="csm_availability_windows",
             local=args.local, debug=args.debug)
 
         _data = _q.get(provider_name=provider_name)

@@ -1,8 +1,8 @@
 -- Windows of time a given provider's device was in the public right-of-way
 
-DROP MATERIALIZED VIEW IF EXISTS csm_availability CASCADE;
+DROP MATERIALIZED VIEW IF EXISTS csm_availability_windows CASCADE;
 
-CREATE MATERIALIZED VIEW csm_availability AS
+CREATE MATERIALIZED VIEW csm_availability_windows AS
 
 WITH avail AS (
     SELECT
@@ -58,10 +58,10 @@ ORDER BY
 WITH NO DATA
 ;
 
-CREATE INDEX csm_availability_timestamp_idx
-    ON csm_availability (provider_name, vehicle_type, start_time, end_time desc)
+CREATE INDEX csm_availability_windows_timestamp_idx
+    ON csm_availability_windows (provider_name, vehicle_type, start_time, end_time desc)
 ;
 
-CREATE INDEX csm_availability_timestamp_local_idx
-    ON csm_availability (provider_name, vehicle_type, start_time_local, end_time_local desc)
+CREATE INDEX csm_availability_windows_timestamp_local_idx
+    ON csm_availability_windows (provider_name, vehicle_type, start_time_local, end_time_local desc)
 ;

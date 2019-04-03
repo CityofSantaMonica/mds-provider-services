@@ -9,7 +9,7 @@ if [[ "$1" == "refresh" ]]; then
     REFRESH MATERIALIZED VIEW device_event_timeline;
     REFRESH MATERIALIZED VIEW active_windows;
     REFRESH MATERIALIZED VIEW inactive_windows;
-    REFRESH MATERIALIZED VIEW csm_availability;
+    REFRESH MATERIALIZED VIEW csm_availability_windows;
 EOSQL
 else
     echo "rebuilding availability views"
@@ -19,9 +19,5 @@ else
         --file availability/device_event_timeline.sql \
         --file availability/active_windows.sql \
         --file availability/inactive_windows.sql \
-        --file availability/csm_availability.sql \
-        --file availability/lost_devices.sql \
-        --file availability/lost_7_days.sql \
-        --file availability/lost_31_days.sql \
-        --file availability/lost_6_months.sql
+        --file availability/csm_availability_windows.sql
 fi
