@@ -296,6 +296,11 @@ if __name__ == "__main__":
     arg_parser, args = setup_cli()
     config = parse_config(args.config)
 
+    # assert the data type parameters
+    if args.trips == None and args.status_changes == None:
+        print("One or both of the --status_changes or --trips arguments is required.")
+        exit(1)
+    
     # determine the MDS version to reference
     args.ref = args.ref or config["DEFAULT"]["ref"] or "master"
     print(f"Referencing MDS @ {args.ref}")
