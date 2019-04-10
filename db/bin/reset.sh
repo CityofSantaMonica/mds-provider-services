@@ -5,6 +5,10 @@ set -e
 # recreate the MDS user and database
 # enable postgis on the MDS database
 
+# adding PGUSER and PGPASS
+export PGUSER=$POSTGRES_USER
+export PGPASSWORD=$POSTGRES_PASSWORD
+
 psql -v ON_ERROR_STOP=1 --host "$POSTGRES_HOSTNAME" --dbname "$POSTGRES_DB" << EOSQL
     DROP DATABASE IF EXISTS $MDS_DB;
 
