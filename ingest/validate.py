@@ -3,11 +3,10 @@ Validate MDS provider data against the published JSON schemas.
 """
 
 import json
-import mds
-from mds.providers import Provider
-from mds.schema.validation import ProviderDataValidator
 from pathlib import Path
 import re
+
+from mds import Provider, ProviderDataValidator, STATUS_CHANGES, TRIPS
 
 
 exceptions = [

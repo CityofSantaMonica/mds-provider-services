@@ -8,20 +8,20 @@ Command-line interface implementing various MDS Provider data ingestion flows, i
 All fully customizable through extensive parameterization and configuration options.
 """
 
-from acquire import acquire_data, provider_names
 import argparse
 from configparser import ConfigParser
 from datetime import datetime, timedelta
 import dateutil.parser
 import json
-from load import load_data
-import mds
-from mds.api import ProviderClient
-import mds.providers
 import os
 from pathlib import Path
 import sys
 import time
+
+from mds import Provider, ProviderClient, STATUS_CHANGES, TRIPS, Version
+
+from acquire import acquire_data, provider_names
+from load import load_data
 from validate import validate_data
 
 

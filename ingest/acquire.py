@@ -2,9 +2,10 @@
 Acquire MDS provider data from a variety of sources as in-memory objects.
 """
 
-import mds
 import os
 from pathlib import Path
+
+from mds import STATUS_CHANGES, TRIPS
 
 
 def expand_files(sources, record_type):
