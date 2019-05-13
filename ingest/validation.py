@@ -74,7 +74,7 @@ def filter(record_type, sources, **kwargs):
     seen = 0
     passed = 0
     valid = []
-    validator = kwargs.get("validator", get_validator(record_type, kwargs["ref"]))
+    validator = kwargs.get("validator", get_validator(record_type, kwargs["version"]))
 
     print(f"Validating {record_type} @ {validator.ref}")
 
