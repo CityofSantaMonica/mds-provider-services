@@ -36,16 +36,30 @@ def setup_cli():
     parser = argparse.ArgumentParser()
 
     parser.add_argument(
-        "--bbox",
+        "provider",
         type=str,
-        help="The bounding-box with which to restrict the results of this request.\
-        The order is southwest longitude, southwest latitude, northeast longitude, northeast latitude.\
-        For example: --bbox -122.4183,37.7758,-122.4120,37.7858"
+        help="The name or identifier of the provider to query."
+    )
+
+    parser.add_argument(
+        "--auth_type",
+        type=str,
+        default="Bearer",
+        help="The type used for the Authorization header for requests to the provider\
+        (e.g. Basic, Bearer)."
+    )
+    parser.add_argument(
+        "--columns",
+        type=str,
+        nargs="+",
+        default=[],
+        help="One or more column names determining a unique record.\
+        Used to drop duplicates in incoming data and detect conflicts with existing records.\
+        NOTE: the program does not differentiate between --columns for --status_changes or --trips."
     )
     parser.add_argument(
         "--config",
         type=str,
-        default=os.path.join(os.getcwd(), ".config"),
         help="Path to a provider configuration file to use."
     )
     parser.add_argument(
@@ -67,6 +81,15 @@ def setup_cli():
         At least one of end_time or start_time is required."
     )
     parser.add_argument(
+        "-H",
+        "--header",
+        dest="headers",
+        action="append",
+        type=lambda kv: (kv.split(":", 1)[0].strip(), kv.split(":", 1)[1].strip()),
+        default=[],
+        help="One or more 'Header: value' combinations, sent with each request."
+    )
+    parser.add_argument(
         "--no_load",
         action="store_true",
         help="Do not attempt to load the returned data."
@@ -74,7 +97,7 @@ def setup_cli():
     parser.add_argument(
         "--no_paging",
         action="store_true",
-        help="Flag indicating paging through the response should *not* occur. Return only the first page of data."
+        help="Return only the first page of data."
     )
     parser.add_argument(
         "--no_validate",
@@ -82,32 +105,15 @@ def setup_cli():
         help="Do not perform JSON Schema validation against the returned data."
     )
     parser.add_argument(
-        "--on_conflict_update",
-        action="store_true",
-        help="Instead of ignoring, perform an UPDATE when incoming data conflicts with existing rows in the database."
-    )
-    parser.add_argument(
         "--output",
         type=str,
         help="Write results to json files in this directory."
-    )
-    parser.add_argument(
-        "--providers",
-        type=str,
-        nargs="+",
-        help="One or more provider names to query, separated by commas.\
-        The default is to query all configured providers."
     )
     parser.add_argument(
         "--rate_limit",
         type=int,
         default=0,
         help="Number of seconds to pause between paging requests to a given endpoint."
-    )
-    parser.add_argument(
-        "--ref",
-        type=str,
-        help="Git branch name, commit hash, or tag at which to reference MDS."
     )
     parser.add_argument(
         "--registry",
@@ -123,30 +129,52 @@ def setup_cli():
     parser.add_argument(
         "--stage_first",
         default=True,
-        help="False to append records directly to the data tables. True to stage in a temp table before UPSERT,\
-        or an int to stage in a temp table before UPSERT, with increasing randomness to the temp table name."
+        help="False to append records directly to the data table.\
+        True to stage in a temp table before UPSERT to the data table.\
+        Int to increase randomness of the temp table name."
     )
     parser.add_argument(
         "--start_time",
         type=str,
         help="The beginning of the time query range for this request.\
-        Should be either int Unix seconds or ISO-8601 datetime format.\
+        Should be either numeric Unix time or ISO-8601 datetime format.\
         At least one of end_time or start_time is required."
     )
     parser.add_argument(
         "--status_changes",
         action="store_true",
-        help="Flag indicating Status Changes should be requested."
+        help="Request status changes.\
+        At least one of --status_changes or --trips is required."
     )
     parser.add_argument(
         "--trips",
         action="store_true",
-        help="Flag indicating Trips should be requested."
+        help="Request trips.\
+        At least one of --status_changes or --trips is required."
+    )
+    parser.add_argument(
+        "-U",
+        "--on_conflict_update",
+        action="append",
+        const=True,
+        default=[],
+        dest="update_actions",
+        nargs="?",
+        type=lambda kv: (kv.split(":", 1)[0].strip(), kv.split(":", 1)[1].strip()),
+        help="Perform an UPDATE when incoming data conflicts with existing database records.\
+        Specify one or more 'column_name: EXCLUDED.value' to build an ON CONFLICT UPDATE statement.\
+        NOTE: the program does not differentiate between --on_conflict_update for --status_changes or --trips."
     )
     parser.add_argument(
         "--vehicle_id",
         type=str,
         help="The vehicle_id to obtain results for. Only applies to --trips."
+    )
+    parser.add_argument(
+        "--version",
+        type=lambda v: Version(v),
+        default=Version.mds_lower(),
+        help="The release version at which to reference MDS, e.g. 0.3.1"
     )
 
     return parser, parser.parse_args()
