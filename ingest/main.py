@@ -33,7 +33,7 @@ def setup_cli():
         - the argument parser
         - the parsed args
     """
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(description="Ingest MDS data from various sources.")
 
     parser.add_argument(
         "provider",
