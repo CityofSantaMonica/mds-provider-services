@@ -1,3 +1,2 @@
--e git+https://github.com/CityofSantaMonica/mds-provider@master#egg=mds_provider
+-e git+https://github.com/CityofSantaMonica/mds-provider@mds-0.3#egg=mds_provider
 jupyter
-python-dateutil

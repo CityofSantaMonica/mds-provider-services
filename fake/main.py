@@ -14,7 +14,7 @@ import json
 import math
 import mds
 from mds.fake import geometry
-from mds.fake.data import random_string
+from mds.fake.data import util
 from mds.fake.provider import ProviderDataGenerator
 from mds.json import parse_boundary, CustomJsonEncoder
 from mds.schema import ProviderSchema

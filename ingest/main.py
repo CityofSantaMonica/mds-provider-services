@@ -11,18 +11,22 @@ All fully customizable through extensive parameterization and configuration opti
 import argparse
 from configparser import ConfigParser
 from datetime import datetime, timedelta
-import dateutil.parser
 import json
 import os
 from pathlib import Path
 import sys
 import time
 
-from mds import Provider, ProviderClient, STATUS_CHANGES, TRIPS, Version
+from mds.api import Client
+from mds.encoding import TimestampDecoder
+from mds.files import ConfigFile
+from mds.providers import Provider
+from mds.schemas import STATUS_CHANGES, TRIPS
+from mds.versions import UnsupportedVersionError, Version
 
-from acquire import acquire_data, provider_names
-from load import load_data
-from validate import validate_data
+import database
+import ingest
+import validation
 
 
 def setup_cli():
@@ -183,121 +187,33 @@ def setup_cli():
 def parse_time_range(cli):
     """
     Returns a valid range tuple (start_time, end_time) given an object with some mix of:
-         - start_time
-         - end_time
-         - duration
+
+    * start_time
+    * end_time
+    * duration
 
     If both start_time and end_time are present, use those. Otherwise, compute from duration.
     """
-    def _to_datetime(data):
-        """
-        Helper to parse different textual representations into datetime
-        """
-        try:
-            return datetime.utcfromtimestamp(int(data))
-        except:
-            return dateutil.parser.parse(data)
+    decoder = TimestampDecoder(version=cli.version)
 
-    if args.start_time is not None and args.end_time is not None:
-        start_time, end_time = _to_datetime(args.start_time), _to_datetime(args.end_time)
+    if cli.start_time is not None and cli.end_time is not None:
+        start_time, end_time = decoder.decode(cli.start_time), decoder.decode(cli.end_time)
         return (start_time, end_time) if start_time <= end_time else (end_time, start_time)
 
-    if args.start_time is not None:
-        start_time = _to_datetime(args.start_time)
-        return start_time, start_time + timedelta(seconds=args.duration)
+    if cli.start_time is not None:
+        start_time = decoder.decode(cli.start_time)
+        return start_time, start_time + timedelta(seconds=cli.duration)
 
-    if args.end_time is not None:
-        end_time = _to_datetime(args.end_time)
-        return end_time - timedelta(seconds=args.duration), end_time
+    if cli.end_time is not None:
+        end_time = decoder.decode(cli.end_time)
+        return end_time - timedelta(seconds=cli.duration), end_time
 
 
-def output_data(output, payloads, record_type, start_time, end_time):
+def count_seconds(ts):
     """
-    Write data to json files in the a directory.
+    Return the number of seconds since a given UNIX datetime.
     """
-    def _file_name(output, provider):
-        """
-        Generate a filename from the given parameters.
-        """
-        fname = f"{provider}_{record_type}_{start_time.isoformat()}_{end_time.isoformat()}.json"
-        return os.path.join(output, fname)
-
-    for provider, payload in payloads.items():
-        fname = _file_name(output, provider.provider_name)
-        with open(fname, "w") as f:
-            json.dump(payload, f)
-
-
-def backfill(record_type, client, start_time, end_time, duration, **kwargs):
-    """
-    Step backwards from :end_time: to :start_time:, running the ingestion flow in sliding blocks of size :duration:.
-
-    Subsequent blocks overlap the previous block by :duration:/2 seconds. Buffers on both ends ensure events starting or
-    ending near a time boundary are captured.
-
-    For example:
-
-    :start_time:=datetime(2018,12,31,0,0,0), :end_time:=datetime(2018,12,31,23,59,59), :duration:=21600
-
-    Results in the following backfill requests:
-
-    - 2018-12-31T20:59:59 to 2019-01-01T02:59:59
-    - 2018-12-31T17:59:59 to 2018-12-31T23:59:59
-    - 2018-12-31T14:59:59 to 2018-12-31T20:59:59
-    - 2018-12-31T11:59:59 to 2018-12-31T17:59:59
-    - 2018-12-31T08:59:59 to 2018-12-31T14:59:59
-    - 2018-12-31T05:59:59 to 2018-12-31T11:59:59
-    - 2018-12-31T02:59:59 to 2018-12-31T08:59:59
-    - 2018-12-30T23:59:59 to 2018-12-31T05:59:59
-    - 2018-12-30T20:59:59 to 2018-12-31T02:59:59
-    """
-    kwargs["no_paging"] = False
-    kwargs["client"] = client
-    rate_limit = kwargs.get("rate_limit")
-
-    duration = timedelta(seconds=duration)
-    offset = duration / 2
-    end = end_time + offset
-
-    while end >= start_time:
-        start = end - duration
-        ingest(record_type, **kwargs, start_time=start, end_time=end)
-        end = end - offset
-
-        if rate_limit:
-            time.sleep(rate_limit)
-
-
-def ingest(record_type, **kwargs):
-    """
-    Run the ingestion flow for the given :record_type:.
-    """
-    datasource = acquire_data(record_type, **kwargs)
-
-    validating = not kwargs.get("no_validate")
-    if validating:
-        ref = kwargs.get("ref")
-        datasource = validate_data(datasource, record_type, ref)
-
-        # clean up missing data
-        for k in [k for k in datasource.keys()]:
-            if not datasource[k] or len(datasource[k]) < 1:
-                del datasource[k]
-    else:
-        print("Skipping data validation")
-
-    # output to files if needed
-    output = kwargs.get("output")
-    if output and os.path.exists(output):
-        print(f"Writing data files to {output}")
-        start_time, end_time = kwargs.get("start_time"), kwargs.get("end_time")
-        output_data(output, datasource, record_type, start_time, end_time)
-
-    loading = not kwargs.get("no_load")
-    if loading and len(datasource) > 0:
-        load_data(datasource, record_type, **kwargs)
-
-    print(f"{record_type} complete")
+    return round((datetime.utcnow() - ts).total_seconds())
 
 
 if __name__ == "__main__":
@@ -307,8 +223,10 @@ if __name__ == "__main__":
     arg_parser, args = setup_cli()
 
     # assert the data type parameters
-    if args.trips == None and args.status_changes == None:
-        print("One or both of the --status_changes or --trips arguments is required.")
+    if not (args.trips or args.status_changes):
+        print("One or both of the --status_changes or --trips flags is required. Run main.py --help for more information.")
+        print("Exiting.")
+        print()
         exit(1)
 
     print(f"Starting ingestion run: {now.isoformat()}")
@@ -331,63 +249,58 @@ if __name__ == "__main__":
     # shortcut for loading from files
     if args.source:
         if args.status_changes:
-            ingest(mds.STATUS_CHANGES, **vars(args))
+            ingest.run(STATUS_CHANGES, **vars(args))
         if args.trips:
-            ingest(mds.TRIPS, **vars(args))
+            ingest.run(TRIPS, **vars(args))
         # finished
+        print(f"Finished ingestion ({count_seconds(now)}s)")
         exit(0)
 
     # assert the time range parameters
     if args.start_time is None and args.end_time is None:
-        arg_parser.print_help()
+        print("One or both of --end_time or --start_time is required. Run main.py --help for more information.")
+        print("Exiting.")
+        print()
         exit(1)
 
     if (args.start_time is None or args.end_time is None) and args.duration is None:
-        arg_parser.print_help()
+        print("With only one of --end_time or --start_time, --duration is required. Run main.py --help for more information.")
+        print("Exiting.")
+        print()
         exit(1)
 
     # backfill mode if all 3 time parameters given
-    args.backfill = all([args.start_time, args.end_time, args.duration])
+    backfill = all([args.start_time, args.end_time, args.duration])
 
     # parse into a valid range
     args.start_time, args.end_time = parse_time_range(args)
 
-    # acquire the Provider registry and filter based on params
+    print(f"Referencing MDS @ {args.version}")
+
+    # acquire the Provider instance
     if args.registry and Path(args.registry).is_file():
         print("Reading local provider registry...")
-        registry = mds.providers.get_registry(file=args.registry)
+        provider = Provider(args.provider, path=args.registry, **config)
     else:
         print("Downloading provider registry...")
-        registry = mds.providers.get_registry(args.ref)
+        provider = Provider(args.provider, version=args.version, **config)
 
-    print(f"Acquired registry: {', '.join(provider_names(registry))}")
+    print(f"Provider '{provider.provider_name}' is configured.")
 
-    # filter the registry with cli args, and configure the providers that will be used
-    providers = [p.configure(config, use_id=True)
-                 for p in mds.providers.filter(registry, args.providers)]
+    # initialize an API client for the provider
+    client = Client(provider, version=args.version)
+    kwargs = dict(client=client, **vars(args))
 
-    # parse any headers from the config to a dict
-    for p in providers:
-        headers = getattr(p, "headers", None)
-        if headers and isinstance(headers, str):
-            p.headers = json.loads(headers)
-
-    # initialize an API client for these providers and configuration
-    client = ProviderClient(providers)
-    kwargs = dict(vars(args))
-
-    # backfill mode
-    if args.backfill:
-        # do not forward with kwargs
-        for key in ["backfill", "start_time", "end_time", "duration"]:
-            del kwargs[key]
+    if backfill:
         if args.status_changes:
-            backfill(mds.STATUS_CHANGES, client, args.start_time, args.end_time, args.duration, **kwargs)
+            ingest.backfill(STATUS_CHANGES, **kwargs)
         if args.trips:
-            backfill(mds.TRIPS, client, args.start_time, args.end_time, args.duration, **kwargs)
-    # simple request mode
+            ingest.backfill(TRIPS, **kwargs)
+
     else:
         if args.status_changes:
-            ingest(mds.STATUS_CHANGES, client=client, **kwargs)
+            ingest.run(STATUS_CHANGES, **kwargs)
         if args.trips:
-            ingest(mds.TRIPS, client=client, **kwargs)
+            ingest.run(TRIPS, **kwargs)
+
+    print(f"Finished ingestion ({count_seconds(now)}s)")
