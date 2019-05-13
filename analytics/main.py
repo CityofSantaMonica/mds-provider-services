@@ -111,11 +111,11 @@ def log(args, msg):
     """
     Prints the message if debugging is turned on.
     """
-    def __now():
+    def _now():
         return datetime.utcnow().isoformat()
 
     if args.debug:
-        print(f"[{__now()}] {msg}")
+        print(f"[{_now()}] {msg}")
 
 
 def availability(provider_name, vehicle_type, args):
