@@ -2,52 +2,12 @@
 Acquire MDS provider payloads from a variety of sources as in-memory objects.
 """
 
+from datetime import timedelta
+
 from mds import DataFile, STATUS_CHANGES, TRIPS
 from mds.versions import UnsupportedVersionError, Version
 
 import database, validation
-
-
-def _acquire(record_type, **kwargs):
-    """
-    Acquire provider data as in-memory objects.
-    """
-    if kwargs.get("source"):
-        source = kwargs.get("source")
-        print(f"Reading {record_type} from {source}")
-        payloads = DataFile(record_type, source).load_payloads()
-        return payloads
-
-    # required for API calls
-    client = kwargs.pop("client")
-    start_time = kwargs.pop("start_time")
-    end_time = kwargs.pop("end_time")
-
-    paging = not kwargs.get("no_paging")
-    rate_limit = kwargs.get("rate_limit")
-    version = kwargs.get("mds_version")
-
-    # package up for API requests
-    _kwargs = dict(paging=paging, rate_limit=rate_limit)
-
-    print(f"Requesting {record_type} from {client.provider.provider_name}")
-    print(f"Time range: {start_time.isoformat()} to {end_time.isoformat()}")
-
-    if record_type == STATUS_CHANGES:
-        _kwargs["start_time"] = start_time
-        _kwargs["end_time"] = end_time
-    elif record_type == TRIPS:
-        _kwargs["device_id"] = kwargs.get("device_id")
-        _kwargs["vehicle_id"] = kwargs.get("vehicle_id")
-
-        if version < Version("0.3.0"):
-            _kwargs["start_time"] = start_time
-            _kwargs["end_time"] = end_time
-        else:
-            _kwargs["min_end_time"] = start_time
-            _kwargs["max_end_time"] = end_time
-
-    return client.get(record_type, **_kwargs)
 
 
 def backfill(record_type, **kwargs):
@@ -79,10 +39,13 @@ def backfill(record_type, **kwargs):
     duration = timedelta(seconds=kwargs.pop("duration"))
     offset = duration / 2
     end = kwargs.pop("end_time") + offset
+    start = kwargs.pop("start_time")
 
-    while end >= kwargs.pop("start_time"):
-        start = end - duration
-        ingest(record_type, **kwargs, start_time=start, end_time=end)
+    print(f"Beginning backfill: {start.isoformat()} to {end.isoformat()}, size {duration.total_seconds()}s")
+
+    while end >= start:
+        _start = end - duration
+        run(record_type, **kwargs, start_time=_start, end_time=end)
         end = end - offset
 
         if rate_limit:
@@ -94,17 +57,18 @@ def run(record_type, **kwargs):
     Run the ingestion flow:
 
     1. acquire data from files or API
-    2. validate data, filtering invalid records
-    3. load valid records into the database
+    2. optionally validate data, filtering invalid records
+    3. optionally write data to output files
+    4. optionally load valid records into the database
     """
-    version = Version(kwargs.pop("mds_version", Version.mds_lower()))
+    version = Version(kwargs.pop("version", Version.mds_lower()))
     if version.unsupported:
         raise UnsupportedVersionError(version)
 
-    datasource = _acquire(record_type, **kwargs, mds_version=version)
+    datasource = acquire(record_type, **kwargs, version=version)
 
     if not kwargs.pop("no_validate", False):
-        datasource = validation.filter(record_type, datasource, ref=version)
+        datasource = validation.filter(record_type, datasource, version=version)
     else:
         print("Skipping data validation")
 
@@ -117,6 +81,48 @@ def run(record_type, **kwargs):
     # load to database
     loading = not kwargs.pop("no_load", False)
     if loading and len(datasource) > 0:
-        database.load(datasource, record_type, **kwargs, mds_version=version)
+        database.load(datasource, record_type, **kwargs, version=version)
 
     print(f"{record_type} complete")
+
+
+def acquire(record_type, **kwargs):
+    """
+    Acquire provider data as in-memory objects.
+    """
+    if kwargs.get("source"):
+        source = kwargs.get("source")
+        print(f"Reading {record_type} from {source}")
+        payloads = DataFile(record_type, source).load_payloads()
+        return payloads
+
+    # required for API calls
+    client = kwargs.pop("client")
+    start_time = kwargs.pop("start_time")
+    end_time = kwargs.pop("end_time")
+
+    paging = not kwargs.get("no_paging")
+    rate_limit = kwargs.get("rate_limit")
+    version = kwargs.get("version")
+
+    # package up for API requests
+    _kwargs = dict(paging=paging, rate_limit=rate_limit)
+
+    print(f"Requesting {record_type} from {client.provider.provider_name}")
+    print(f"Time range: {start_time.isoformat()} to {end_time.isoformat()}")
+
+    if record_type == STATUS_CHANGES:
+        _kwargs["start_time"] = start_time
+        _kwargs["end_time"] = end_time
+    elif record_type == TRIPS:
+        _kwargs["device_id"] = kwargs.get("device_id")
+        _kwargs["vehicle_id"] = kwargs.get("vehicle_id")
+
+        if version < Version("0.3.0"):
+            _kwargs["start_time"] = start_time
+            _kwargs["end_time"] = end_time
+        else:
+            _kwargs["min_end_time"] = start_time
+            _kwargs["max_end_time"] = end_time
+
+    return client.get(record_type, **_kwargs)
