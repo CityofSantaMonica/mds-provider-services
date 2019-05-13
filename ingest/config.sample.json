@@ -1,0 +1,28 @@
+{
+    "provider_name_or_id": {
+        "auth_type": "",
+        "client_id": "",
+        "client_secret": "",
+        "headers": {
+        },
+        "mds_api_suffix": "",
+        "mds_api_url": "",
+        "scope": "",
+        "token": "",
+        "token_url": "",
+        "version": ""
+    },
+    "another_provider_name_or_id": {
+        "auth_type": "",
+        "client_id": "",
+        "client_secret": "",
+        "headers": {
+        },
+        "mds_api_suffix": "",
+        "mds_api_url": "",
+        "scope": "",
+        "token": "",
+        "token_url": "",
+        "version": ""
+    }
+}

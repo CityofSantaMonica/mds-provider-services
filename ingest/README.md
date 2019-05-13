@@ -7,7 +7,7 @@ Pull data from `provider` API endpoints and load to a Postgres database.
 First, copy and edit the sample configuration file:
 
 ```bash
-cp .config.sample .config
+cp config.sample.json config.json
 ```
 
 Next, ensure the image is up to date locally:
