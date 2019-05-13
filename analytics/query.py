@@ -43,7 +43,7 @@ def parse_db_env():
 ENGINE = data_engine(**parse_db_env())
 
 
-class TimeQuery:
+class TimeQuery():
     """
     Represents a query over a time period.
     """

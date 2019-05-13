@@ -35,7 +35,7 @@ class CounterInterval(pandas.Interval):
         return self.length
 
 
-class DeviceCounter:
+class DeviceCounter():
     """
     Measure the number of available devices within a time period.
     """
@@ -61,20 +61,20 @@ class DeviceCounter:
 
         self.start = start
         self.end = end
-        self.__start = self.__ts2int(start)
-        self.__end = self.__ts2int(end)
-        self.interval = CounterInterval(self.__start, self.__end)
+        self._start = self._ts2int(start)
+        self._end = self._ts2int(end)
+        self.interval = CounterInterval(self._start, self._end)
         self.delta = self.interval.delta
         self.local = local
         self.debug = debug
 
-        self.__reset()
+        self._reset()
 
         if self.debug:
             print(f"self.interval: {self.interval}")
             print()
 
-    def __reset(self):
+    def _reset(self):
         """
         Resets this counter with the initial interval.
         """
@@ -85,13 +85,13 @@ class DeviceCounter:
         self.splits = 0
         self.counter = 0
 
-    def __int2ts(self, i):
+    def _int2ts(self, i):
         """
         Convert :i: to a Timestamp
         """
         return pandas.Timestamp(i, unit="s")
 
-    def __ts2int(self, ts):
+    def _ts2int(self, ts):
         """
         Try to convert :ts: to a integer
         """
@@ -100,18 +100,18 @@ class DeviceCounter:
         except:
             return int(ts)
 
-    def __interval(self, key_index):
+    def _interval(self, key_index):
         """
         Get the Interval by index in the sorted key list
         """
         return self.counts.keys()[key_index]
 
-    def __insertidx(self, start, end, default_index=0):
+    def _insertidx(self, start, end, default_index=0):
         """
         Get an insertion index for an interval with the given endpoints.
         """
         # the index for the closest known sub-interval to the event's timespan
-        index = self.counts.bisect_right(CounterInterval(start, end or self.__end)) - 1
+        index = self.counts.bisect_right(CounterInterval(start, end or self._end)) - 1
         # using the start of the interval as the default
         return index if index >= 0 else default_index
 
@@ -127,20 +127,20 @@ class DeviceCounter:
         Performs a right-bisection on the counter intervals, assigning counts to increasingly
         finer slices based on the the event's timespan's intersection with the existing counter intervals.
         """
-        event_start = self.__ts2int(event_start)
-        event_end = None if (event_end is None or event_end is pandas.NaT) else self.__ts2int(event_end)
+        event_start = self._ts2int(event_start)
+        event_end = None if (event_end is None or event_end is pandas.NaT) else self._ts2int(event_end)
         to_remove = SortedSet()
         to_add = SortedDict()
 
-        __counter = self.counter
-        __splits = self.splits
+        _counter = self.counter
+        _splits = self.splits
 
         # get the next insertion index
-        index = self.__insertidx(start=event_start, end=event_end)
+        index = self._insertidx(start=event_start, end=event_end)
 
         # move the index to the right, splitting the existing intervals and incrementing counts along the way
-        while index < len(self.counts) and (event_end is None or self.__interval(index).start < event_end):
-            interval = self.__interval(index)
+        while index < len(self.counts) and (event_end is None or self._interval(index).start < event_end):
+            interval = self._interval(index)
             count = self.counts[interval]
             start, end = interval.start, interval.end
 
@@ -215,9 +215,9 @@ class DeviceCounter:
                 "end": event_end,
                 "index": index,
                 "remove": len(to_remove),
-                "split": int(self.splits - __splits),
+                "split": int(self.splits - _splits),
                 "add": len(to_add),
-                "counter": int(self.counter - __counter)
+                "counter": int(self.counter - _counter)
             }
             print(", ".join([f"{k}: {v}" for k, v in debug.items()]))
 
@@ -240,7 +240,7 @@ class DeviceCounter:
             print(f"Generating f(x) over [{self.start}, {self.end}] with {len(data)} input records")
             print()
 
-        self.__reset()
+        self._reset()
 
         assert(len(self.counts) == 1)
         assert(self.counts.keys()[0] == self.interval)
@@ -274,8 +274,8 @@ class DeviceCounter:
                         "end": i.end,
                         "delta": i.delta,
                         "count": c,
-                        "start_date": self.__int2ts(i.start),
-                        "end_date": self.__int2ts(i.end) }
+                        "start_date": self._int2ts(i.start),
+                        "end_date": self._int2ts(i.end) }
                     for i, c in self.counts.items()]
 
         return pandas.DataFrame.from_records(partition,

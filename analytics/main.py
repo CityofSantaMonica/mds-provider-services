@@ -116,7 +116,7 @@ def log(debug, msg):
     """
     Prints the message if debugging is turned on.
     """
-    def __now():
+    def _now():
         return datetime.utcnow().isoformat()
 
     if debug:
