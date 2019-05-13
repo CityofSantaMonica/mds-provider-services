@@ -180,23 +180,7 @@ def setup_cli():
     return parser, parser.parse_args()
 
 
-def parse_config(path):
-    """
-    Helper to parse a config file at :path:.
-    """
-    if not os.path.exists(path):
-        print("Could not find config file: ", path)
-        exit(1)
-
-    print("Reading config file:", path)
-
-    config = ConfigParser()
-    config.read(path)
-
-    return config
-
-
-def parse_time_range(args):
+def parse_time_range(cli):
     """
     Returns a valid range tuple (start_time, end_time) given an object with some mix of:
          - start_time
@@ -317,21 +301,32 @@ def ingest(record_type, **kwargs):
 
 
 if __name__ == "__main__":
-    now = datetime.utcnow().isoformat()
-    print(f"Run time: {now}")
+    now = datetime.utcnow()
 
-    # configuration
+    # command line args
     arg_parser, args = setup_cli()
-    config = parse_config(args.config)
 
     # assert the data type parameters
     if args.trips == None and args.status_changes == None:
         print("One or both of the --status_changes or --trips arguments is required.")
         exit(1)
-    
-    # determine the MDS version to reference
-    args.ref = args.ref or config["DEFAULT"]["ref"] or "master"
-    print(f"Referencing MDS @ {args.ref}")
+
+    print(f"Starting ingestion run: {now.isoformat()}")
+
+    if args.config:
+        print("Reading configuration file:", args.config)
+        config = ConfigFile(args.config, args.provider).dump()
+    elif Path("./config.json").exists():
+        print("Found configuration file, reading...")
+        config = ConfigFile("./config.json", args.provider).dump()
+    else:
+        print("No configuration file found.")
+        config = {}
+
+    # assert the version parameter
+    args.version = Version(config.pop("version", args.version))
+    if args.version.unsupported:
+        raise UnsupportedVersionError(args.version)
 
     # shortcut for loading from files
     if args.source:
