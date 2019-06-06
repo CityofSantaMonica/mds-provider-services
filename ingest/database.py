@@ -3,10 +3,9 @@ Load MDS provider data from a variety of sources into a database.
 """
 
 import os
-from pathlib import Path
 
-from mds import STATUS_CHANGES, TRIPS, Database, Provider
-from mds.versions import UnsupportedVersionError, Version
+import mds
+
 
 # default columns defining a unique record
 COLUMNS = {
@@ -41,9 +40,9 @@ def _prepare_conflict_update(columns, version=None):
     """
     Create a tuple for generating an ON CONFLICT UPDATE statement.
     """
-    version = version or Version.mds_lower()
+    version = version or mds.Version.mds_lower()
     if version.unsupported:
-        raise UnsupportedVersionError(version)
+        raise mds.UnsupportedVersionError(version)
 
     if columns and len(columns) > 0:
         condition = f"({columns if isinstance(columns, str) else ', '.join(columns)})"
@@ -92,7 +91,7 @@ def status_changes_conflict_update(columns, actions, version=None):
     """
     condition, version = _prepare_conflict_update(columns, version)
 
-    if version < Version("0.3.0"):
+    if version < mds.Version("0.3.0"):
         if "associated_trips" not in actions:
             actions["associated_trips"] = "cast(EXCLUDED.associated_trips as uuid[])"
     else:
@@ -131,17 +130,17 @@ def load(datasource, record_type, **kwargs):
 
     conflict_update = len(actions) > 0
 
-    version = Version(kwargs.pop("version", Version.mds_lower()))
+    version = mds.Version(kwargs.pop("version", mds.Version.mds_lower()))
     stage_first = int(kwargs.pop("stage_first", True))
 
     _env = dict(stage_first=stage_first, **env())
-    db = kwargs.get("db", Database(**_env))
+    db = kwargs.get("db", mds.Database(**_env))
 
     print(f"Loading {record_type}")
 
-    if record_type == STATUS_CHANGES:
+    if record_type == mds.STATUS_CHANGES:
         _kwargs["on_conflict_update"] = status_changes_conflict_update(columns, actions, version) if conflict_update else None
         db.load_status_changes(datasource, **_kwargs)
-    elif record_type == TRIPS:
+    elif record_type == mds.TRIPS:
         _kwargs["on_conflict_update"] = trips_conflict_update(columns, actions, version) if conflict_update else None
         db.load_trips(datasource, **_kwargs)

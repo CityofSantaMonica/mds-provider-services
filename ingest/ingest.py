@@ -2,12 +2,13 @@
 Acquire MDS provider payloads from a variety of sources as in-memory objects.
 """
 
-from datetime import timedelta
+import datetime
+import time
 
-from mds import DataFile, STATUS_CHANGES, TRIPS
-from mds.versions import UnsupportedVersionError, Version
+import mds
 
-import database, validation
+import database
+import validation
 
 
 def backfill(record_type, **kwargs):
@@ -36,7 +37,7 @@ def backfill(record_type, **kwargs):
     kwargs["no_paging"] = False
     rate_limit = kwargs.get("rate_limit")
 
-    duration = timedelta(seconds=kwargs.pop("duration"))
+    duration = datetime.timedelta(seconds=kwargs.pop("duration"))
     offset = duration / 2
     end = kwargs.pop("end_time") + offset
     start = kwargs.pop("start_time")
@@ -61,9 +62,9 @@ def run(record_type, **kwargs):
     3. optionally write data to output files
     4. optionally load valid records into the database
     """
-    version = Version(kwargs.pop("version", Version.mds_lower()))
+    version = mds.Version(kwargs.pop("version", mds.Version.mds_lower()))
     if version.unsupported:
-        raise UnsupportedVersionError(version)
+        raise mds.UnsupportedVersionError(version)
 
     datasource = acquire(record_type, **kwargs, version=version)
 
@@ -118,7 +119,7 @@ def acquire(record_type, **kwargs):
         _kwargs["device_id"] = kwargs.get("device_id")
         _kwargs["vehicle_id"] = kwargs.get("vehicle_id")
 
-        if version < Version("0.3.0"):
+        if version < mds.Version("0.3.0"):
             _kwargs["start_time"] = start_time
             _kwargs["end_time"] = end_time
         else:
