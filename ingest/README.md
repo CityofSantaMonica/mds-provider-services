@@ -123,7 +123,9 @@ Buffers on both ends ensure events starting or ending near a time boundary are c
 
 For example:
 
-    --start_time=2018-12-31T00:00:00 --end_time=2019-01-01T00:00:00 --duration=21600
+```bash
+--start_time=2018-12-31T00:00:00 --end_time=2019-01-01T00:00:00 --duration=21600
+```
 
 Results in the following backfill requests:
 
