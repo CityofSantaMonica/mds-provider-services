@@ -3,11 +3,9 @@ Validate MDS provider data against the published JSON schemas.
 """
 
 import json
-from pathlib import Path
 import re
 
-from mds.providers import Provider
-from mds.schemas import STATUS_CHANGES, TRIPS, DataValidator
+import mds
 
 
 EXCEPTIONS = [
@@ -29,10 +27,10 @@ def get_validator(record_type, ref):
     """
     Create a mds.schemas.DataValidator instance.
     """
-    if record_type == STATUS_CHANGES:
-        return DataValidator.status_changes(ref=ref)
-    elif record_type == TRIPS:
-        return DataValidator.trips(ref=ref)
+    if record_type == mds.STATUS_CHANGES:
+        return mds.DataValidator.status_changes(ref=ref)
+    elif record_type == mds.TRIPS:
+        return mds.DataValidator.trips(ref=ref)
     else:
         raise ValueError(f"Invalid record_type: {record_type}")
 
@@ -41,7 +39,6 @@ def filter(record_type, sources, **kwargs):
     """
     Keep only valid records from each source.
     """
-
     if not all([isinstance(d, dict) and "data" in d for d in sources]):
         raise TypeError("Sources appears to be the wrong data type. Expected a list of payload dicts.")
 

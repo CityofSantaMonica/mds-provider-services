@@ -9,20 +9,12 @@ All fully customizable through extensive parameterization and configuration opti
 """
 
 import argparse
-from configparser import ConfigParser
-from datetime import datetime, timedelta
+import datetime
 import json
-import os
-from pathlib import Path
-import sys
-import time
+import pathlib
 
-from mds.api import Client
-from mds.encoding import TimestampDecoder
-from mds.files import ConfigFile
-from mds.providers import Provider
-from mds.schemas import STATUS_CHANGES, TRIPS
-from mds.versions import UnsupportedVersionError, Version
+import mds
+import mds.encoding
 
 import database
 import ingest
@@ -176,8 +168,8 @@ def setup_cli():
     )
     parser.add_argument(
         "--version",
-        type=lambda v: Version(v),
-        default=Version.mds_lower(),
+        type=lambda v: mds.Version(v),
+        default=mds.Version.mds_lower(),
         help="The release version at which to reference MDS, e.g. 0.3.1"
     )
 
@@ -194,30 +186,32 @@ def parse_time_range(cli):
 
     If both start_time and end_time are present, use those. Otherwise, compute from duration.
     """
-    decoder = TimestampDecoder(version=cli.version)
+    decoder = mds.encoding.TimestampDecoder(version=cli.version)
 
     if cli.start_time is not None and cli.end_time is not None:
         start_time, end_time = decoder.decode(cli.start_time), decoder.decode(cli.end_time)
         return (start_time, end_time) if start_time <= end_time else (end_time, start_time)
 
+    duration = datetime.timedelta(seconds=cli.duration)
+
     if cli.start_time is not None:
         start_time = decoder.decode(cli.start_time)
-        return start_time, start_time + timedelta(seconds=cli.duration)
+        return start_time, start_time + duration
 
     if cli.end_time is not None:
         end_time = decoder.decode(cli.end_time)
-        return end_time - timedelta(seconds=cli.duration), end_time
+        return end_time - duration, end_time
 
 
 def count_seconds(ts):
     """
     Return the number of seconds since a given UNIX datetime.
     """
-    return round((datetime.utcnow() - ts).total_seconds())
+    return round((datetime.datetime.utcnow() - ts).total_seconds())
 
 
 if __name__ == "__main__":
-    now = datetime.utcnow()
+    now = datetime.datetime.utcnow()
 
     # command line args
     arg_parser, args = setup_cli()
@@ -233,25 +227,25 @@ if __name__ == "__main__":
 
     if args.config:
         print("Reading configuration file:", args.config)
-        config = ConfigFile(args.config, args.provider).dump()
-    elif Path("./config.json").exists():
+        config = mds.ConfigFile(args.config, args.provider).dump()
+    elif pathlib.Path("./config.json").exists():
         print("Found configuration file, reading...")
-        config = ConfigFile("./config.json", args.provider).dump()
+        config = mds.ConfigFile("./config.json", args.provider).dump()
     else:
         print("No configuration file found.")
         config = {}
 
     # assert the version parameter
-    args.version = Version(config.pop("version", args.version))
+    args.version = mds.Version(config.pop("version", args.version))
     if args.version.unsupported:
-        raise UnsupportedVersionError(args.version)
+        raise mds.UnsupportedVersionError(args.version)
 
     # shortcut for loading from files
     if args.source:
         if args.status_changes:
-            ingest.run(STATUS_CHANGES, **vars(args))
+            ingest.run(mds.STATUS_CHANGES, **vars(args))
         if args.trips:
-            ingest.run(TRIPS, **vars(args))
+            ingest.run(mds.TRIPS, **vars(args))
         # finished
         print(f"Finished ingestion ({count_seconds(now)}s)")
         exit(0)
@@ -278,29 +272,29 @@ if __name__ == "__main__":
     print(f"Referencing MDS @ {args.version}")
 
     # acquire the Provider instance
-    if args.registry and Path(args.registry).is_file():
+    if args.registry and pathlib.Path(args.registry).is_file():
         print("Reading local provider registry...")
-        provider = Provider(args.provider, path=args.registry, **config)
+        provider = mds.Provider(args.provider, path=args.registry, **config)
     else:
         print("Downloading provider registry...")
-        provider = Provider(args.provider, version=args.version, **config)
+        provider = mds.Provider(args.provider, version=args.version, **config)
 
     print(f"Provider '{provider.provider_name}' is configured.")
 
     # initialize an API client for the provider
-    client = Client(provider, version=args.version)
+    client = mds.Client(provider, version=args.version)
     kwargs = dict(client=client, **vars(args))
 
     if backfill:
         if args.status_changes:
-            ingest.backfill(STATUS_CHANGES, **kwargs)
+            ingest.backfill(mds.STATUS_CHANGES, **kwargs)
         if args.trips:
-            ingest.backfill(TRIPS, **kwargs)
+            ingest.backfill(mds.TRIPS, **kwargs)
 
     else:
         if args.status_changes:
-            ingest.run(STATUS_CHANGES, **kwargs)
+            ingest.run(mds.STATUS_CHANGES, **kwargs)
         if args.trips:
-            ingest.run(TRIPS, **kwargs)
+            ingest.run(mds.TRIPS, **kwargs)
 
     print(f"Finished ingestion ({count_seconds(now)}s)")
