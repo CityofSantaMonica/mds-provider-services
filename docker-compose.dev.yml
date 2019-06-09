@@ -1,10 +1,14 @@
-version: "3"
+version: "3.7"
 
 services:
+  base:
+    build: .
+    image: mds_provider_python
+
   analytics:
-    build: ./analytics
-    image: mds_provider_analytics
+    image: mds_provider_python
     container_name: mds_provider_analytics
+    entrypoint: ["python", "main.py"]
     environment:
       - POSTGRES_HOSTNAME
       - POSTGRES_HOST_PORT
@@ -14,11 +18,12 @@ services:
     ports:
       - "${NB_HOST_PORT}:8888"
     volumes:
-      - ./analytics/notebooks:/usr/src/mds/notebooks
+      - ./analytics:/usr/src/mds/analytics
+      - ./data:/usr/src/mds/analytics/data
+    working_dir: /usr/src/mds/analytics
 
   client:
-    build: ./client
-    image: mds_provider_client
+    image: dpage/pgadmin4
     container_name: mds_provider_client
     environment:
       - PGADMIN_DEFAULT_EMAIL
@@ -27,20 +32,22 @@ services:
       - "${PGADMIN_HOST_PORT}:80"
 
   fake:
-    build: ./fake
-    image: mds_provider_fake
+    image: mds_provider_python
     container_name: mds_provider_fake
+    entrypoint: ["python", "main.py"]
     environment:
       - MDS_BOUNDARY
     ports:
       - "${NB_HOST_PORT}:8888"
     volumes:
-      - data:/usr/src/mds/data
+      - ./fake:/usr/src/mds/fake
+      - ./data:/usr/src/mds/fake/data
+    working_dir: /usr/src/mds/fake
 
   db:
-    build: ./db
-    image: mds_provider_db
+    image: mdillon/postgis:10
     container_name: mds_provider_db
+    entrypoint: [ "bin/entrypoint.sh" ]
     environment:
       - POSTGRES_HOSTNAME
       - POSTGRES_DB
@@ -49,11 +56,14 @@ services:
       - MDS_DB
       - MDS_USER
       - MDS_PASSWORD
+    volumes:
+      - ./db:/usr/src/mds/db
+    working_dir: /usr/src/mds/db
 
   ingest:
-    build: ./ingest
-    image: mds_provider_ingest
+    image: mds_provider_python
     container_name: mds_provider_ingest
+    entrypoint: ["python", "main.py"]
     environment:
       - POSTGRES_HOSTNAME
       - POSTGRES_HOST_PORT
@@ -63,11 +73,12 @@ services:
     ports:
       - "${NB_HOST_PORT}:8888"
     volumes:
-      - data:/usr/src/mds/data
+      - ./ingest:/usr/src/mds/ingest
+      - ./data:/usr/src/mds/data
+    working_dir: /usr/src/mds/ingest
 
   server:
-    build: ./server
-    image: mds_provider_server
+    image: mdillon/postgis:10
     container_name: mds_provider_server
     environment:
       - POSTGRES_DB
@@ -75,6 +86,3 @@ services:
       - POSTGRES_PASSWORD
     ports:
       - "5432:5432"
-
-volumes:
-  data:

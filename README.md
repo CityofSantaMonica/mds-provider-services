@@ -12,11 +12,11 @@ The services are organized around specific functions. More detailed explanation 
 | service | description |
 | --------- | ----------- |
 | [`analytics`](analytics/) | Perform analysis on `provider` data |
-| [`client`](client/) | [pgAdmin4][pgadmin] web client |
+| [`client`](#pgadmin-client) | [pgAdmin4][pgadmin] web client |
 | [`db`](db/) | Work with a `provider` database |
 | [`fake`](fake/) | Generate fake `provider` data for testing and development |
 | [`ingest`](ingest/) | Ingest `provider` data from different sources |
-| [`server`](server/) | Local [postgres][postgres] database server |
+| [`server`](#local-postgres-server) | Local [postgres][postgres] database server |
 
 ## Getting Started
 
@@ -62,17 +62,25 @@ Now you can browse to `http://localhost:PGADMIN_HOST_PORT` and login with the `P
 
 Attach to the server `POSTGRES_HOSTNAME`, database `MDS_DB`, with the `MDS` credentials.
 
-### 3. Run individual service jobs
+### 3. Build the base image for service jobs
+
+The other services rely on a common `python:3.7`-based image:
+
+```bash
+docker-compose build base
+```
+
+### 4. Run individual service jobs
 
 Generally, an individual service `SERVICE` can be run with a command like:
 
 ```bash
-docker-compose run --rm SERVICE [OPTIONS]
+docker-compose run SERVICE [OPTIONS]
 ```
 
 See the `README` file in each service folder for more details.
 
-### 4. Start a Jupyter Notebook server
+### 5. Start a Jupyter Notebook server
 
 `analytics`, `fake` and `ingest` all come with Jupyter Notebook servers that can be run locally:
 
@@ -89,6 +97,49 @@ Also note that all of the services make use of the *same* `NB_HOST_PORT` environ
 Modify `docker-compose.yml` if you need to use different ports to run Notebook servers on multiple services simultaneously.
 
 Optional `[ARGS]` will be passed directly to the `jupyter notebook` startup command. See [bin/notebook.sh](bin/notebook.sh) for details.
+
+## Local Postgres server
+
+Run a local Postgres database server:
+
+```bash
+docker-compose up server
+```
+
+### Configuration
+
+This container uses the following environment variables to create the Postgres server:
+
+```bash
+POSTGRES_HOSTNAME=server
+POSTGRES_DB=postgres
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=postgres_password
+```
+
+## pgadmin client
+
+A web client interface into local and remote Postgres databases:
+
+```bash
+docker-compose up client
+```
+
+### Configuration
+
+This container uses the following environment variables to configure pgAdmin4:
+
+```bash
+PGADMIN_DEFAULT_EMAIL=user@domain.com
+PGADMIN_DEFAULT_PASSWORD=pgadmin_password
+PGADMIN_HOST_PORT=8088
+```
+
+### Connecting
+
+Once running, connect to the container from a web browser at: `http://localhost:$PGADMIN_HOST_PORT`.
+
+Use the `$PGADMIN_DEFAULT_EMAIL` and `$PGADMIN_DEFAULT_PASSWORD` to log in.
 
 [compose]: https://docs.docker.com/compose/overview/
 [docker]: https://www.docker.com/

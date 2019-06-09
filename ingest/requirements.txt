@@ -1,2 +1,0 @@
--e git+https://github.com/CityofSantaMonica/mds-provider@mds-0.3#egg=mds_provider
-jupyter

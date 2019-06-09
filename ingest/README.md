@@ -10,16 +10,16 @@ First, copy and edit the sample configuration file:
 cp config.sample.json config.json
 ```
 
-Next, ensure the image is up to date locally:
+Ensure the base image is up to date:
 
 ```bash
-docker-compose build --no-cache ingest
+docker-compose build base
 ```
 
-Then run the data ingester:
+Run the data ingester:
 
 ```bash
-docker-compose run --rm ingest [OPTIONS]
+docker-compose run [--rm] ingest [OPTIONS]
 ```
 
 ## [OPTIONS]
