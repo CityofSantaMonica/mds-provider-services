@@ -5,12 +5,14 @@ Command-line interface implementing various MDS Provider data analytics, includi
 """
 
 import argparse
-from datetime import datetime, timedelta
-import dateutil
-from measure import DeviceCounter
-import pandas
-import query
+import datetime
+import statistics
 import time
+
+import mds
+
+import measure
+import query
 
 
 def setup_cli():
@@ -61,7 +63,8 @@ def setup_cli():
         action="append",
         type=lambda kv: kv.split("=", 1),
         dest="queries",
-        help="A series of PROVIDER=VEHICLE pairs; each pair will be analyzed separately."
+        metavar="QUERY",
+        help="A {provider_name}={vehicle_type} pair; multiple pairs will be analyzed separately."
     )
     parser.add_argument(
         "--start",
@@ -70,11 +73,17 @@ def setup_cli():
         Should be either int Unix seconds or ISO-8601 datetime format\
         At least one of end or start is required."
     )
+    parser.add_argument(
+        "--version",
+        type=lambda v: mds.Version(v),
+        default=mds.Version("0.2.1"),
+        help="The release version at which to reference MDS, e.g. 0.3.1"
+    )
 
     return parser, parser.parse_args()
 
 
-def parse_time_range(start=None, end=None, duration=None):
+def parse_time_range(start=None, end=None, duration=None, version=None):
     """
     Returns a valid range tuple (start, end) given an object with some mix of:
          - start
@@ -83,14 +92,7 @@ def parse_time_range(start=None, end=None, duration=None):
 
     If both start and end are present, use those. Otherwise, compute from duration.
     """
-    def _to_datetime(data):
-        """
-        Helper to parse different textual representations into datetime
-        """
-        try:
-            return datetime.utcfromtimestamp(int(data))
-        except:
-            return dateutil.parser.parse(data)
+    decoder = mds.TimestampDecoder(version=version)
 
     if start is None and end is None:
         raise ValueError("At least one of start or end is required.")
@@ -99,17 +101,15 @@ def parse_time_range(start=None, end=None, duration=None):
         raise ValueError("duration is required when only one of start or end is given.")
 
     if start is not None and end is not None:
-        return _to_datetime(start), _to_datetime(end)
-
-    duration = int(duration)
+        return decoder.decode(start), decoder.decode(end)
 
     if start is not None:
-        start = _to_datetime(start)
-        return start, start + timedelta(seconds=duration)
+        start = decoder.decode(start)
+        return start, start + datetime.timedelta(seconds=duration)
 
     if end is not None:
-        end = _to_datetime(end)
-        return end - timedelta(seconds=duration), end
+        end = decoder.decode(end)
+        return end - datetime.timedelta(seconds=duration), end
 
 
 def log(debug, msg):
@@ -117,10 +117,10 @@ def log(debug, msg):
     Prints the message if debugging is turned on.
     """
     def _now():
-        return datetime.utcnow().isoformat()
+        return datetime.datetime.utcnow().isoformat()
 
     if debug:
-        print(f"[{__now()}] {msg}")
+        print(f"[{_now()}] {msg}")
 
 
 def availability(provider_name, vehicle_type, start, end, **kwargs):
@@ -128,7 +128,7 @@ def availability(provider_name, vehicle_type, start, end, **kwargs):
     Runs the availability calculation
     """
     debug = kwargs.get("debug")
-    step = timedelta(days=1)
+    step = datetime.timedelta(days=1)
 
     log(debug, f"Starting calculation for {provider_name}")
 
@@ -140,15 +140,16 @@ def availability(provider_name, vehicle_type, start, end, **kwargs):
             start,
             _end,
             table="csm_availability_windows",
+            provider_name=provider_name,
             vehicle_types=vehicle_type,
             **kwargs
         )
 
-        data = q.get(provider_name=provider_name)
+        data = q.get()
 
         log(debug, f"{len(data)} availability records in time period")
 
-        devices = DeviceCounter(start, _end, **kwargs)
+        devices = measure.DeviceCounter(start, _end, **kwargs)
 
         yield (start, _end, devices.count(data))
 
@@ -159,7 +160,7 @@ if __name__ == "__main__":
     arg_parser, args = setup_cli()
 
     try:
-        start, end = parse_time_range(start=args.start, end=args.end, duration=args.duration)
+        start, end = parse_time_range(start=args.start, end=args.end, duration=args.duration, version=args.version)
     except ValueError as e:
         print(e)
         arg_parser.print_help()

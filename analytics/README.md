@@ -13,47 +13,37 @@ docker-compose build --no-cache analytics
 Then run an analytics job:
 
 ```bash
-docker-compose run --rm analytics [OPTIONS]
+docker-compose run [--rm] analytics [OPTIONS]
 ```
 
 ## [OPTIONS]
 
-Note: you must provide a range of time to query using some combination of `start`, `end`, and `duration`. Providing both `start` and `end` takes precedence over either of them with `duration`.
+**Note:** you must provide a range of time to query using some combination of `--start_time`, `--end_time`, and `--duration`.
 
-### `--availability`
-
-Run the availability calculation.
-
-### `--cutoff CUTOFF`
-
-Maximum allowed length of a time-windowed event (e.g. availability window, trip), in days.
-
-### `--debug`
-
-Print debug messages.
-
-### `--duration DURATION`
-
-Number of seconds; with `--start` or `--end` defines a time query range.
-
-### `--end END_TIME`
-
-The end of the time query range for this job. Should be either int Unix seconds or ISO-8061 datetime format.
-
-### `--local`
-
-Input and query times are local.
-
-### `--query PROVIDER=VEHICLE`
-
-A `provider_name` and `vehicle_type` pair to analyze. Use this option multiple times to analyze multiple pairs independently.
-
-E.g.
+For a complete list of options, see the help/usage output:
 
 ```bash
---query providerA=scooter --query providerA=bicycle --query providerB=scooter
+$ docker-compose run analytics --help
+
+usage: main.py [-h] [--availability] [--cutoff CUTOFF] [--debug]
+               [--duration DURATION] [--end END] [--local] [--query QUERIES]
+               [--start START]
+
+optional arguments:
+  -h, --help           show this help message and exit
+  --availability       Run the availability calculation.
+  --cutoff CUTOFF      Maximum allowed length of a time-windowed event (e.g.
+                       availability window, trip), in days.
+  --debug              Print debug messages.
+  --duration DURATION  Number of seconds; with --start_time or --end_time,
+                       defines a time query range.
+  --end END            The end of the time query range for this request.
+                       Should be either int Unix seconds or ISO-8601 datetime
+                       format. At least one of end or start is required.
+  --local              Input and query times are local.
+  --query QUERIES      A series of PROVIDER=VEHICLE pairs; each pair will be
+                       analyzed separately.
+  --start START        The beginning of the time query range for this request.
+                       Should be either int Unix seconds or ISO-8601 datetime
+                       format At least one of end or start is required.
 ```
-
-### `--start START_TIME`
-
-The beginning of the time query range for this job. Should be either int Unix seconds or ISO-8061 datetime format.

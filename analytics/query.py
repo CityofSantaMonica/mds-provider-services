@@ -1,6 +1,8 @@
-from mds.db.load import data_engine
 import os
+
 import pandas
+
+import mds
 
 
 def parse_db_env():
@@ -40,7 +42,7 @@ def parse_db_env():
     return { "user": user, "password": password, "db": db, "host": host, "port": port }
 
 
-ENGINE = data_engine(**parse_db_env())
+ENGINE = mds.db.data_engine(**parse_db_env())
 
 
 class TimeQuery():
