@@ -9,19 +9,19 @@ All fully customizable through extensive parameterization and configuration opti
 """
 
 import argparse
-from datetime import datetime, timedelta
+import datetime
 import json
 import math
-import mds
-from mds.fake import geometry
-from mds.fake.data import util
-from mds.fake.provider import ProviderDataGenerator
-from mds.json import parse_boundary, CustomJsonEncoder
-from mds.schema import ProviderSchema
 import os
 import random
 import time
 import uuid
+
+
+import mds
+import mds.encoding
+import mds.fake.util as util
+import mds.geometry
 
 
 def setup_cli():
@@ -32,7 +32,7 @@ def setup_cli():
         - the argument parser
         - the parsed args
     """
-    schema = ProviderSchema(mds.TRIPS)
+    schema = mds.Schema(mds.TRIPS)
 
     parser = argparse.ArgumentParser()
 
@@ -44,11 +44,13 @@ def setup_cli():
     parser.add_argument(
         "--close",
         type=int,
+        default=19,
         help="The hour of the day (24-hr format) that provider stops operations. Overrides --start and --end."
     )
     parser.add_argument(
         "--date_format",
         type=str,
+        default="unix",
         help="Format for datetime input (to this CLI) and output (to stdout and files). Options:\
             - 'unix' for Unix timestamps (default)\
             - 'iso8601' for ISO 8601 format\
@@ -73,6 +75,7 @@ def setup_cli():
     parser.add_argument(
         "--open",
         type=int,
+        default=7,
         help="The hour of the day (24-hr format) that provider begins operations. Overrides --start and --end."
     )
     parser.add_argument(
@@ -84,7 +87,9 @@ def setup_cli():
         "--propulsion_types",
         type=str,
         nargs="+",
-        help="A list of propulsion_types to use for the generated data, e.g. '{}'".format(", ".join(schema.propulsion_types()))
+        default=schema.propulsion_types,
+        metavar="PROPULSION_TYPE",
+        help="A list of propulsion_types to use for the generated data, e.g. '{}'".format(" ".join(schema.propulsion_types))
     )
     parser.add_argument(
         "--provider_name",
@@ -115,7 +120,15 @@ def setup_cli():
         "--vehicle_types",
         type=str,
         nargs="+",
-        help="A list of vehicle_types to use for the generated data, e.g. '{}'".format(", ".join(schema.vehicle_types()))
+        default=schema.vehicle_types,
+        metavar="VEHICLE_TYPE",
+        help="A list of vehicle_types to use for the generated data, e.g. '{}'".format(" ".join(schema.vehicle_types))
+    )
+    parser.add_argument(
+        "--version",
+        type=lambda v: mds.Version(v),
+        default=mds.Version("0.2.1"),
+        help="The release version at which to reference MDS, e.g. 0.3.1"
     )
 
     return parser, parser.parse_args()
@@ -134,36 +147,25 @@ if __name__ == "__main__":
         exit(1)
 
     # collect the parameters for data generation
-    provider_name = args.provider_name or f"Provider {random_string(3)}"
+    provider_name = args.provider_name or f"provider_{util.random_string(3)}"
     provider_id = args.provider_id or uuid.uuid4()
     N = args.devices or random.randint(100, 500)
 
-    date_format = "unix" if args.date_format is None else args.date_format
-    encoder = CustomJsonEncoder(date_format=date_format)
+    encoder = mds.JsonEncoder(date_format=args.date_format, version=args.version)
+    decoder = mds.TimestampDecoder(version=args.version)
 
-    date_start = datetime.today()
+    date_start = datetime.datetime.today()
     date_end = date_start
 
-    if date_format == "unix":
-        date_start = datetime.fromtimestamp(
-            int(args.start)) if args.start else date_start
-        date_end = datetime.fromtimestamp(
-            int(args.end)) if args.end else date_end
-    elif date_format == "iso8601":
-        date_start = datetime.fromisoformat(
-            args.start) if args.start else date_start
-        date_end = datetime.fromisoformat(args.end) if args.end else date_end
-    else:
-        date_start = datetime.strptime(
-            args.start, date_format) if args.start else date_start
-        date_end = datetime.strptime(
-            args.end, date_format) if args.end else date_end
+    if args.start:
+        date_start = decoder.decode(args.start)
+    if args.end:
+        date_end = decoder.decode(args.end)
 
-    hour_open = 7 if args.open is None else args.open
-    hour_closed = 19 if args.close is None else args.close
+    hour_open = args.open
+    hour_closed = args.close
 
-    inactivity = random.uniform(
-        0, 0.05) if args.inactivity is None else args.inactivity
+    inactivity = random.uniform(0, 0.05) if args.inactivity is None else args.inactivity
 
     # convert speed to meters/second
     ONE_MPH_METERSSEC = 0.44704
@@ -180,14 +182,15 @@ if __name__ == "__main__":
 
     print(f"Parsing boundary file: {boundary_file}")
     t1 = time.time()
-    boundary = parse_boundary(boundary_file, downloads=outputdir)
+    boundary = mds.geometry.parse_boundary(boundary_file, downloads=outputdir)
     print(f"Valid boundary: {boundary.is_valid} ({time.time() - t1} s)")
 
-    gen = ProviderDataGenerator(
+    gen = mds.fake.ProviderDataGenerator(
         boundary=boundary,
         speed=speed,
         vehicle_types=args.vehicle_types,
-        propulsion_types=args.propulsion_types)
+        propulsion_types=args.propulsion_types
+    )
 
     print(f"Generating {N} devices for '{provider_name}'")
     t1 = time.time()
@@ -203,16 +206,14 @@ if __name__ == "__main__":
     date = date_start
     while(date <= date_end):
         formatted_date = encoder.encode(date)
-        print(
-            f"Starting day: {formatted_date} (open hours {hour_open} to {hour_closed})")
+        print(f"Starting day: {formatted_date} (open hours {hour_open} to {hour_closed})")
 
         t2 = time.time()
 
-        day_status_changes, day_trips = gen.service_day(
-            devices, date, hour_open, hour_closed, inactivity)
+        day_status_changes, day_trips = gen.service_day(devices, date, hour_open, hour_closed, inactivity)
         status_changes.extend(day_status_changes)
         trips.extend(day_trips)
-        date = date + timedelta(days=1)
+        date = date + datetime.timedelta(days=1)
 
         print(f"Finished day: {formatted_date} ({time.time() - t2} s)")
 
@@ -222,28 +223,26 @@ if __name__ == "__main__":
         print("Generating data files")
         t1 = time.time()
 
-        trips_file = os.path.join(outputdir, "trips.json")
+        trips_file = mds.DataFile(mds.TRIPS, outputdir)
 
-        print("Writing to:", trips_file)
+        print("Writing trips")
+
         t2 = time.time()
-
-        with open(trips_file, "w") as f:
-            payload = gen.make_payload(trips=trips)
-            f.write(encoder.encode(payload))
+        payload = gen.make_payload(trips=trips)
+        trips_file.dump_payloads(payload)
 
         print(f"Finished ({time.time() - t2} s)")
 
-        sc_file = os.path.join(outputdir, "status_changes.json")
+        sc_file = mds.DataFile(mds.STATUS_CHANGES, outputdir)
 
-        print("Writing to:", sc_file)
+        print("Writing status_changes")
+
         t2 = time.time()
-
-        with open(sc_file, "w") as f:
-            payload = gen.make_payload(status_changes=status_changes)
-            f.write(encoder.encode(payload))
+        payload = gen.make_payload(status_changes=status_changes)
+        sc_file.dump_payloads(payload)
 
         print(f"Finished ({time.time() - t2} s)")
 
-        print(f"Generating data files complete ({time.time() - t1} s)")
+        print(f"Finished generating data files ({time.time() - t1} s)")
 
-    print(f"Data generation complete ({time.time() - T0} s)")
+    print(f"Fake data generation complete ({time.time() - T0} s)")
