@@ -277,7 +277,7 @@ if __name__ == "__main__":
         provider = mds.Provider(args.provider, path=args.registry, **config)
     else:
         print("Downloading provider registry...")
-        provider = mds.Provider(args.provider, version=args.version, **config)
+        provider = mds.Provider(args.provider, ref=args.version, **config)
 
     print(f"Provider '{provider.provider_name}' is configured.")
 
