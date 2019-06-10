@@ -9,20 +9,20 @@ import mds
 
 # default columns defining a unique record
 COLUMNS = {
-    STATUS_CHANGES: ["provider_id", "device_id", "event_time", "event_type", "event_type_reason"],
-    TRIPS: ["provider_id", "trip_id"]
+    mds.STATUS_CHANGES: ["provider_id", "device_id", "event_time", "event_type", "event_type_reason"],
+    mds.TRIPS: ["provider_id", "trip_id"]
 }
 
 # default ON CONFLICT UPDATE actions
 UPDATE_ACTIONS = {
-    STATUS_CHANGES: {
+    mds.STATUS_CHANGES: {
         "event_type": "cast(EXCLUDED.event_type as event_types)",
         "event_type_reason": "cast(EXCLUDED.event_type_reason as event_type_reasons)",
         "event_location": "cast(EXCLUDED.event_location as jsonb)",
         "battery_pct": "EXCLUDED.battery_pct",
         "sequence_id": "EXCLUDED.sequence_id"
     },
-    TRIPS: {
+    mds.TRIPS: {
         "trip_duration": "EXCLUDED.trip_duration",
         "trip_distance": "EXCLUDED.trip_distance",
         "route": "cast(EXCLUDED.route as jsonb)",

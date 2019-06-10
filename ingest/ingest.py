@@ -77,7 +77,7 @@ def run(record_type, **kwargs):
     output = kwargs.pop("output", None)
     if output:
         print(f"Writing data files to {output}")
-        DataFile(record_type).dump_payloads(datasource)
+        mds.DataFile(record_type, output).dump_payloads(datasource)
 
     # load to database
     loading = not kwargs.pop("no_load", False)
@@ -94,7 +94,7 @@ def acquire(record_type, **kwargs):
     if kwargs.get("source"):
         source = kwargs.get("source")
         print(f"Reading {record_type} from {source}")
-        payloads = DataFile(record_type, source).load_payloads()
+        payloads = mds.DataFile(record_type, source).load_payloads()
         return payloads
 
     # required for API calls
@@ -112,10 +112,10 @@ def acquire(record_type, **kwargs):
     print(f"Requesting {record_type} from {client.provider.provider_name}")
     print(f"Time range: {start_time.isoformat()} to {end_time.isoformat()}")
 
-    if record_type == STATUS_CHANGES:
+    if record_type == mds.STATUS_CHANGES:
         _kwargs["start_time"] = start_time
         _kwargs["end_time"] = end_time
-    elif record_type == TRIPS:
+    elif record_type == mds.TRIPS:
         _kwargs["device_id"] = kwargs.get("device_id")
         _kwargs["vehicle_id"] = kwargs.get("vehicle_id")
 
