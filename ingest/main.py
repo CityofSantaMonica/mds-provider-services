@@ -169,7 +169,7 @@ def setup_cli():
     parser.add_argument(
         "--version",
         type=lambda v: mds.Version(v),
-        default=mds.Version.mds_lower(),
+        default=mds.Version("0.2.1"),
         help="The release version at which to reference MDS, e.g. 0.3.1"
     )
 
