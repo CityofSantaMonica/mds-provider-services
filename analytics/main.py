@@ -7,11 +7,9 @@ Command-line interface implementing various MDS Provider data analytics, includi
 import argparse
 from datetime import datetime, timedelta
 import dateutil
-import mds.providers
 from measure import DeviceCounter
 import pandas
 import query
-from statistics import mean
 import time
 
 
@@ -131,8 +129,6 @@ def availability(provider_name, vehicle_type, start, end, **kwargs):
     """
     debug = kwargs.get("debug")
     step = timedelta(days=1)
-
-    results = {}
 
     log(debug, f"Starting calculation for {provider_name}")
 
