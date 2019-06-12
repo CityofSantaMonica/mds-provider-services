@@ -40,7 +40,7 @@ class DeviceCounter:
     Measure the number of available devices within a time period.
     """
 
-    def __init__(self, start, end, local=False, debug=False):
+    def __init__(self, start, end, local=False, debug=False, **kwargs):
         """
         Initialize a new `DeviceCounter` instance for the given range of time.
 

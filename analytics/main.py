@@ -31,6 +31,12 @@ def setup_cli():
         help="Run the availability calculation."
     )
     parser.add_argument(
+        "--cutoff",
+        type=int,
+        default=-1,
+        help="Maximum allowed length of a time-windowed event (e.g. availability window, trip), in days."
+    )
+    parser.add_argument(
         "--debug",
         action="store_true",
         help="Print debug messages."
@@ -53,11 +59,6 @@ def setup_cli():
         help="Input and query times are local."
     )
     parser.add_argument(
-        "--output",
-        action="store_true",
-        help="Write results to csv."
-    )
-    parser.add_argument(
         "--query",
         action="append",
         type=lambda kv: kv.split("=", 1),
@@ -75,7 +76,7 @@ def setup_cli():
     return parser, parser.parse_args()
 
 
-def parse_time_range(args):
+def parse_time_range(start=None, end=None, duration=None):
     """
     Returns a valid range tuple (start, end) given an object with some mix of:
          - start
@@ -93,109 +94,91 @@ def parse_time_range(args):
         except:
             return dateutil.parser.parse(data)
 
-    if args.start is not None and args.end is not None:
-        return _to_datetime(args.start), _to_datetime(args.end)
+    if start is None and end is None:
+        raise ValueError("At least one of start or end is required.")
 
-    duration = int(args.duration)
+    if (start is None or end is None) and duration is None:
+        raise ValueError("duration is required when only one of start or end is given.")
 
-    if args.start is not None:
-        start = _to_datetime(args.start)
+    if start is not None and end is not None:
+        return _to_datetime(start), _to_datetime(end)
+
+    duration = int(duration)
+
+    if start is not None:
+        start = _to_datetime(start)
         return start, start + timedelta(seconds=duration)
 
-    if args.end is not None:
-        end = _to_datetime(args.end)
+    if end is not None:
+        end = _to_datetime(end)
         return end - timedelta(seconds=duration), end
 
 
-def log(args, msg):
+def log(debug, msg):
     """
     Prints the message if debugging is turned on.
     """
     def __now():
         return datetime.utcnow().isoformat()
 
-    if args.debug:
+    if debug:
         print(f"[{__now()}] {msg}")
 
 
-def availability(provider_name, vehicle_type, args):
+def availability(provider_name, vehicle_type, start, end, **kwargs):
     """
     Runs the availability calculation
     """
-    oneday = timedelta(days=1)
-
-    log(args, f"""Starting availability calculation:
-    - time range: {args.start} to {args.end}
-    - provider: {provider_name}
-    - vehicle type: {vehicle_type}""")
-
-    devices = DeviceCounter(args.start, args.end, local=args.local, debug=args.debug)
-
-    q = query.Availability(args.start, args.end,
-        vehicle_types=vehicle_type,
-        table="csm_availability_windows",
-        local=args.local, debug=True)
+    debug = kwargs.get("debug")
+    step = timedelta(days=1)
 
     results = {}
 
-    log(args, f"Starting calculation for {provider_name}")
+    log(debug, f"Starting calculation for {provider_name}")
 
-    data = q.get(provider_name=provider_name)
-    partition = devices.count(data).partition()
+    while start < end:
+        _end = start + step
+        log(debug, f"Counting {start.strftime('%Y-%m-%d')} to {_end.strftime('%Y-%m-%d')}")
 
-    log(args, partition.describe())
-
-    overall_avg = devices.average()
-    log(args, f"Overall average: {overall_avg}")
-
-    counts = {}
-    start = args.start
-
-    while start < args.end:
-        end = start + oneday
-        log(args, f"Counting {start.strftime('%Y-%m-%d')} to {end.strftime('%Y-%m-%d')}")
-
-        _q = query.Availability(start, end,
-            vehicle_types=vehicle_type,
+        q = query.Availability(
+            start,
+            _end,
             table="csm_availability_windows",
-            local=args.local, debug=args.debug)
+            vehicle_types=vehicle_type,
+            **kwargs
+        )
 
-        _data = _q.get(provider_name=provider_name)
+        data = q.get(provider_name=provider_name)
 
-        log(args, f"{len(_data)} availability records in time period")
+        log(debug, f"{len(data)} availability records in time period")
 
-        _devices = DeviceCounter(start, end, local=args.local, debug=args.debug)
-        counts[start] = _devices.count(_data)
+        devices = DeviceCounter(start, _end, **kwargs)
 
-        start = end
+        yield (start, _end, devices.count(data))
 
-    if args.debug:
-        for date, count in counts.items():
-            print(f"{provider_name},{vehicle_type},{date.strftime('%Y-%m-%d')},{count.average()},{overall_avg}")
-
-    return overall_avg, counts
+        start = _end
 
 
 if __name__ == "__main__":
     arg_parser, args = setup_cli()
 
-    # assert the time range parameters and parse a valid range
-    if args.start is None and args.end is None:
+    try:
+        start, end = parse_time_range(start=args.start, end=args.end, duration=args.duration)
+    except ValueError as e:
+        print(e)
         arg_parser.print_help()
         exit(1)
 
-    if (args.start is None or args.end is None) and args.duration is None:
-        arg_parser.print_help()
-        exit(1)
+    queries = dict(args.queries)
 
-    args.start, args.end = parse_time_range(args)
+    kwargs = vars(args)
+    for key in ("start", "end", "duration", "queries"):
+        del kwargs[key]
 
     if args.availability:
-        for provider_name, vehicle_type in dict(args.queries).items():
-            overall_avg, counts = availability(provider_name, vehicle_type, args)
-            if args.output:
-                for date, count in counts.items():
-                    print(f"{provider_name},{vehicle_type},{date.strftime('%Y-%m-%d')},{count.average()},{overall_avg}")
+        for provider_name, vehicle_type in queries.items():
+            for _start, _end, count in availability(provider_name, vehicle_type, start, end, **kwargs):
+                print(f"{provider_name},{vehicle_type},{start.strftime('%Y-%m-%d')},{end.strftime('%Y-%m-%d')},{count.average()}")
     else:
         arg_parser.print_help()
         exit(0)

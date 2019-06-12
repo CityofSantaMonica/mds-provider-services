@@ -40,6 +40,7 @@ def parse_db_env():
 
     return { "user": user, "password": password, "db": db, "host": host, "port": port }
 
+
 ENGINE = data_engine(**parse_db_env())
 
 
@@ -60,6 +61,8 @@ class TimeQuery:
 
         Supported optional keyword arguments:
 
+        :cutoff: Maximum allowed length of a time-windowed event (e.g. availability window, trip), as int number of days.
+
         :engine: A `sqlalchemy.engine.Engine` representing a connection to the database.
 
         :table: Name of the table or view containing the source records. This is required either at initialization or query time.
@@ -79,6 +82,7 @@ class TimeQuery:
 
         self.start = start
         self.end = end
+        self.cutoff = kwargs.get("cutoff", -1)
         self.engine = kwargs.get("engine")
         self.table = kwargs.get("table")
         self.provider_name = kwargs.get("provider_name")
@@ -87,32 +91,29 @@ class TimeQuery:
         self.local = kwargs.get("local", False)
         self.debug = kwargs.get("debug", False)
 
-    def get(self, **kwargs):
+    def prepare_sql(self, **kwargs):
         """
-        Execute a query against this `Query`'s table.
+        Build the SQL statement for this TimeQuery.
 
         Supported optional keyword arguments:
 
-        :engine: A `sqlalchemy.engine.Engine` representing a connection to the database.
-
-        :table: Name of the table or view containing the source records. This is required either at initialization or query time.
-
-        :provider_name: The name of a provider, as found in the providers registry.
-
-        :vehicle_types: vehicle_type or list of vehicle_type to further restrict the query.
-
-        :predicates: Additional predicates that will be ANDed to the WHERE clause (e.g `vehicle_id = '1234'`).
+        :cutoff: Maximum allowed length of a time-windowed event (e.g. availability window, trip), as int number of days.
 
         :order_by: Column name(s) for the ORDER BY clause.
 
-        :returns: A `pandas.DataFrame` of trips from the given provider, crossing this query's time range.
+        :predicates: Additional predicates that will be ANDed to the WHERE clause (e.g `vehicle_id = '1234'`).
+
+        :provider_name: The name of a provider, as found in the providers registry.
+
+        :table: Name of the table or view containing the source records. This is required either at initialization or query time.
+
+        :vehicle_types: vehicle_type or list of vehicle_type to further restrict the query.
         """
         table = kwargs.get("table", self.table)
         if not table:
-            raise ValueError("This query does not specify a table.")
+            raise ValueError("No source table specified.")
 
-        engine = kwargs.get("engine", self.engine or ENGINE)
-
+        cutoff = kwargs.get("cutoff", self.cutoff)
         start_time = "start_time_local" if self.local else "start_time"
         end_time = "end_time_local" if self.local else "end_time"
 
@@ -122,7 +123,7 @@ class TimeQuery:
         provider_name = kwargs.get("provider_name", self.provider_name)
 
         if provider_name:
-            predicates.append(f"provider_name = '{provider_name or self.provider_name}'")
+            predicates.append(f"lower(provider_name) = lower('{provider_name}')")
 
         vts = "'::vehicle_types,'"
         vehicle_types = kwargs.get("vehicle_types", self.vehicle_types)
@@ -131,7 +132,30 @@ class TimeQuery:
                 vehicle_types = [vehicle_types]
             predicates.append(f"vehicle_type IN ('{vts.join(vehicle_types)}'::vehicle_types)")
 
-        predicates = " AND ".join(predicates)
+        if len(predicates) > 0:
+            predicates = " AND ".join(predicates) + " AND "
+        else:
+            predicates = ""
+
+        timeranges = [
+            f"({start_time} <= %(start)s AND {end_time} > %(start)s)",
+            f"({start_time} < %(end)s AND {end_time} >= %(end)s)",
+            f"({start_time} >= %(start)s AND {end_time} <= %(end)s)"
+        ]
+
+        if cutoff > 0:
+            where = f"""
+            {predicates}
+                ({end_time} IS NULL AND {start_time} between %(start)s - '{cutoff} days'::interval and %(end)s OR
+                (date_part('day', {end_time} - {start_time}) <= {cutoff} AND
+                    ({" OR ".join(timeranges)})))
+            """
+        else:
+            timeranges.append(f"({start_time} < %(end)s AND {end_time} IS NULL)")
+            where = f"""
+            {predicates}
+                ({" OR ".join(timeranges)})
+            """
 
         order_by = kwargs.get("order_by", self.order_by)
         if order_by:
@@ -140,19 +164,31 @@ class TimeQuery:
             order_by = ",".join(order_by)
             order_by = f"ORDER BY {order_by}"
 
-        sql = f"""
+        return f"""
             SELECT
                 *
             FROM
-                {self.table}
+                {table}
             WHERE
-                {predicates} AND
-                (({start_time} <= %(start)s AND {end_time} > %(start)s) OR
-                ({start_time} < %(end)s AND {end_time} >= %(end)s) OR
-                ({start_time} >= %(start)s AND {end_time} <= %(end)s) OR
-                ({start_time} < %(end)s AND {end_time} IS NULL))
+                {where}
             {order_by};
             """
+
+    def get(self, **kwargs):
+        """
+        Execute a query against this `Query`'s table.
+
+        Supported optional keyword arguments:
+
+        :engine: A `sqlalchemy.engine.Engine` representing a connection to the database.
+
+        Additional keyword arguments are forwarded to prepare_sql.
+
+        :returns: A `pandas.DataFrame` of trips from the given provider, crossing this query's time range.
+        """
+        engine = kwargs.pop("engine", self.engine or ENGINE)
+
+        sql = self.prepare_sql(**kwargs)
 
         if self.debug:
             print("Sending query:")

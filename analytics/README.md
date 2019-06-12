@@ -24,6 +24,10 @@ Note: you must provide a range of time to query using some combination of `start
 
 Run the availability calculation.
 
+### `--cutoff CUTOFF`
+
+Maximum allowed length of a time-windowed event (e.g. availability window, trip), in days.
+
 ### `--debug`
 
 Print debug messages.
