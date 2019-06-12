@@ -21,8 +21,5 @@ else
         --file trips/routes.sql \
         --file trips/process_trip_routes.sql \
         --file trips/csm_trips.sql \
-        --file trips/daily.sql \
-        --file trips/trips_7_days.sql \
-        --file trips/trips_31_days.sql \
-        --file trips/trips_6_months.sql
+        --file trips/daily.sql
 fi
