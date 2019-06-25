@@ -13,6 +13,7 @@ CREATE TABLE status_changes (
     event_location jsonb not null,
     battery_pct double precision,
     associated_trips uuid[],
+    sequence_id bigserial not null,
     CONSTRAINT unique_event UNIQUE (provider_id, device_id, event_type, event_type_reason, event_time)
 );
 
