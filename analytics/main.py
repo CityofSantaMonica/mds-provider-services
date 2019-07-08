@@ -174,7 +174,7 @@ if __name__ == "__main__":
     if args.availability:
         for provider_name, vehicle_type in queries.items():
             for _start, _end, count in availability(provider_name, vehicle_type, start, end, **kwargs):
-                print(f"{provider_name},{vehicle_type},{start.strftime('%Y-%m-%d')},{end.strftime('%Y-%m-%d')},{count.average()},{args.cutoff}")
+                print(f"{provider_name},{vehicle_type},{_start.strftime('%Y-%m-%d')},{_end.strftime('%Y-%m-%d')},{count.average()},{args.cutoff}")
     else:
         arg_parser.print_help()
         exit(0)
