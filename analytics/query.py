@@ -36,7 +36,6 @@ def parse_db_env():
         port = os.environ["POSTGRES_HOST_PORT"]
     except:
         port = 5432
-        print("No POSTGRES_HOST_PORT environment variable set, defaulting to:", port)
 
     return { "user": user, "password": password, "db": db, "host": host, "port": port }
 
