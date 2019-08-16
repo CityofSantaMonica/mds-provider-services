@@ -8,6 +8,7 @@ services:
   analytics:
     image: mds_provider_python
     container_name: mds_provider_analytics
+    working_dir: /usr/src/mds/analytics
     entrypoint: ["python", "main.py"]
     environment:
       - POSTGRES_HOSTNAME
@@ -20,7 +21,6 @@ services:
     volumes:
       - ./analytics:/usr/src/mds/analytics
       - ./data:/usr/src/mds/analytics/data
-    working_dir: /usr/src/mds/analytics
 
   client:
     image: dpage/pgadmin4
@@ -34,6 +34,7 @@ services:
   fake:
     image: mds_provider_python
     container_name: mds_provider_fake
+    working_dir: /usr/src/mds/fake
     entrypoint: ["python", "main.py"]
     environment:
       - MDS_BOUNDARY
@@ -42,11 +43,11 @@ services:
     volumes:
       - ./fake:/usr/src/mds/fake
       - ./data:/usr/src/mds/fake/data
-    working_dir: /usr/src/mds/fake
 
   db:
     image: mdillon/postgis:10
     container_name: mds_provider_db
+    working_dir: /usr/src/mds/db
     entrypoint: [ "bin/entrypoint.sh" ]
     environment:
       - POSTGRES_HOSTNAME
@@ -58,11 +59,11 @@ services:
       - MDS_PASSWORD
     volumes:
       - ./db:/usr/src/mds/db
-    working_dir: /usr/src/mds/db
 
   ingest:
     image: mds_provider_python
     container_name: mds_provider_ingest
+    working_dir: /usr/src/mds/ingest
     entrypoint: ["python", "main.py"]
     environment:
       - POSTGRES_HOSTNAME
@@ -74,8 +75,7 @@ services:
       - "${NB_HOST_PORT}:8888"
     volumes:
       - ./ingest:/usr/src/mds/ingest
-      - ./data:/usr/src/mds/data
-    working_dir: /usr/src/mds/ingest
+      - ./data:/usr/src/mds/ingest/data
 
   server:
     image: mdillon/postgis:10
