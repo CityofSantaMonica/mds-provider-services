@@ -14,9 +14,10 @@ CREATE TABLE trips (
     accuracy integer not null,
     start_time timestamptz not null,
     end_time timestamptz not null,
-    parking_verification_url text,
-    standard_cost integer,
-    actual_cost integer,
+    parking_verification_url text null,
+    standard_cost integer null,
+    actual_cost integer null,
+    publication_time timestamptz null,
     sequence_id bigserial not null,
     CONSTRAINT pk_trips PRIMARY KEY (provider_id, trip_id)
 );
