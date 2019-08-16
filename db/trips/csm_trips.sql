@@ -14,10 +14,8 @@ SELECT
     trips.trip_distance,
     trips.standard_cost,
     trips.actual_cost,
-    csm_local_timestamp(trips.start_time) as start_time_local,
-    csm_local_timestamp(trips.end_time) as end_time_local,
-    csm_local_timestamp(routes.first_csm_timepoint) as first_csm_timepoint,
-    csm_local_timestamp(routes.last_csm_timepoint) as last_csm_timepoint,
+    routes.first_csm_timepoint as first_csm_timepoint,
+    routes.last_csm_timepoint as last_csm_timepoint,
     routes.first_csm_geopoint,
     routes.last_csm_geopoint,
     routes.route_line
