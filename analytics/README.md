@@ -4,13 +4,13 @@ Perform analysis on an MDS `provider` Postgres database.
 
 ## Running
 
-First, ensure the image is up to date locally:
+Ensure the base image is up to date:
 
 ```bash
-docker-compose build --no-cache analytics
+docker-compose build base
 ```
 
-Then run an analytics job:
+Run an analytics job:
 
 ```bash
 docker-compose run [--rm] analytics [OPTIONS]

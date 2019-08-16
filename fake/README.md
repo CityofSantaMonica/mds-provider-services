@@ -4,9 +4,13 @@ Generate fake MDS `provider` data for testing and development.
 
 ## Running
 
-Run the container to generate randomized data. The data is saved in a mounted subdirectory.
+Ensure the base image is up to date:
 
-Run this command from the parent directory, where the `docker-compose.yml` file lives:
+```bash
+docker-compose build base
+```
+
+Generate randomized data, saved in a mounted subdirectory.
 
 ```console
 docker-compose run [--rm] fake [OPTIONS]
