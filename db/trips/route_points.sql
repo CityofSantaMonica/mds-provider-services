@@ -59,7 +59,7 @@ BEGIN
         coords.f as feature,
         coords.ts as feature_timestamp,
         csm_parse_feature_geom(coords.f) as geopoint,
-        to_timestamp(coords.ts) as timepoint,
+        csm_to_timestamp(coords.ts) as timepoint,
         st_contains(csm_city_boundary(), csm_parse_feature_geom(coords.f)) as in_csm,
         st_contains(csm_downtown_district(), csm_parse_feature_geom(coords.f)) as in_dtsm
     FROM
