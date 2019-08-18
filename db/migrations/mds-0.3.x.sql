@@ -1,19 +1,17 @@
+BEGIN;
+
 -- status_changes
 
-DROP INDEX status_changes_sequence_id_idx
-;
+DROP INDEX status_changes_sequence_id_idx;
 
 ALTER SEQUENCE status_changes_sequence_id_seq
-    RENAME TO status_changes_mds02x_sequence_id_seq
-;
+    RENAME TO status_changes_mds02x_sequence_id_seq;
 
 ALTER TABLE status_changes
-    DROP CONSTRAINT unique_event
-;
+    DROP CONSTRAINT unique_event;
 
 ALTER TABLE status_changes
-    RENAME TO status_changes_mds02x
-;
+    RENAME TO status_changes_mds02x;
 
 CREATE TABLE status_changes (
     provider_id uuid not null,
@@ -34,8 +32,7 @@ CREATE TABLE status_changes (
 );
 
 CREATE INDEX status_changes_sequence_id_idx
-    ON status_changes USING brin (sequence_id)
-;
+    ON status_changes USING brin (sequence_id);
 
 INSERT INTO status_changes (
     provider_id,
@@ -49,7 +46,8 @@ INSERT INTO status_changes (
     event_time,
     event_location,
     battery_pct,
-    associated_trip
+    associated_trip,
+    sequence_id
 )
 SELECT
     provider_id,
@@ -63,7 +61,8 @@ SELECT
     event_time,
     event_location,
     battery_pct,
-    associated_trips[1]
+    associated_trips[1],
+    sequence_id
 FROM
     status_changes_mds02x
 ORDER BY
@@ -72,16 +71,16 @@ ORDER BY
 
 -- trips
 
-DROP INDEX trips_sequence_id_idx
-;
+DROP INDEX trips_sequence_id_idx;
 
 ALTER SEQUENCE trips_sequence_id_seq
-    RENAME TO trips_mds02x_sequence_id_seq
-;
+    RENAME TO trips_mds02x_sequence_id_seq;
 
 ALTER TABLE trips
-    RENAME TO trips_mds02x
-;
+    DROP CONSTRAINT pk_trips;
+
+ALTER TABLE trips
+    RENAME TO trips_mds02x;
 
 CREATE TABLE trips (
     provider_id uuid not null,
@@ -106,8 +105,7 @@ CREATE TABLE trips (
 );
 
 CREATE INDEX trips_sequence_id_idx
-    ON trips USING brin (sequence_id)
-;
+    ON trips USING brin (sequence_id);
 
 INSERT INTO trips (
     provider_id,
@@ -125,7 +123,8 @@ INSERT INTO trips (
     end_time,
     parking_verification_url,
     standard_cost,
-    actual_cost
+    actual_cost,
+    sequence_id
 )
 SELECT
     provider_id,
@@ -143,7 +142,8 @@ SELECT
     end_time,
     parking_verification_url,
     standard_cost,
-    actual_cost
+    actual_cost,
+    sequence_id
 FROM
     trips_mds02x
 ORDER BY
@@ -151,5 +151,6 @@ ORDER BY
 ;
 
 INSERT INTO migrations (version, date)
-VALUES ('mds-0.3.x', now())
-;
+VALUES ('mds-0.3.x', now());
+
+COMMIT;

@@ -1,3 +1,5 @@
+BEGIN;
+
 CREATE TABLE migrations (
     version text primary key,
     date timestamptz not null,
@@ -12,8 +14,7 @@ CREATE TABLE jobs (
 );
 
 ALTER TABLE status_changes
-    RENAME TO status_changes_030
-;
+    RENAME TO status_changes_030;
 
 CREATE TABLE status_changes (
     provider_id uuid not null,
@@ -33,8 +34,7 @@ CREATE TABLE status_changes (
 );
 
 CREATE INDEX status_changes_sequence_id_idx
-    ON status_changes USING brin (sequence_id)
-;
+    ON status_changes USING brin (sequence_id);
 
 INSERT INTO status_changes (
     provider_id,
@@ -68,8 +68,7 @@ FROM
 ;
 
 ALTER TABLE trips
-    RENAME TO trips_030
-;
+    RENAME TO trips_030;
 
 CREATE TABLE trips (
     provider_id uuid not null,
@@ -93,8 +92,7 @@ CREATE TABLE trips (
 );
 
 CREATE INDEX trips_sequence_id_idx
-    ON trips USING brin (sequence_id)
-;
+    ON trips USING brin (sequence_id);
 
 INSERT INTO trips (
     provider_id,
@@ -132,9 +130,9 @@ SELECT
     standard_cost,
     actual_cost
 FROM
-    trips_030
-;
+    trips_030;
 
 INSERT INTO migrations (version, date)
-VALUES ('0.4.0', now())
-;
+VALUES ('0.4.0', now());
+
+COMMIT;
