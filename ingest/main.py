@@ -279,7 +279,8 @@ if __name__ == "__main__":
         print("Downloading provider registry...")
         provider = mds.Provider(args.provider, ref=args.version, **config)
 
-    print(f"Provider '{provider.provider_name}' is configured.")
+    print(f"Provider configured:")
+    print(provider)
 
     # initialize an API client for the provider
     client = mds.Client(provider, version=args.version)

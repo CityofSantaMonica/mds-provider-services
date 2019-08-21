@@ -36,7 +36,7 @@ UPDATE_ACTIONS = {
     }
 }
 
-def _prepare_conflict_update(columns, version=None):
+def prepare_conflict_update(columns, version=None):
     """
     Create a tuple for generating an ON CONFLICT UPDATE statement.
     """
@@ -50,6 +50,30 @@ def _prepare_conflict_update(columns, version=None):
         raise TypeError("Columns are required.")
 
     return condition, version
+
+
+def status_changes_conflict_update(columns, actions, version=None):
+    """
+    Create a tuple for generating the status_changes ON CONFLICT UPDATE statement.
+    """
+    condition, version = prepare_conflict_update(columns, version)
+
+    if version < mds.Version("0.3.0"):
+        if "associated_trips" not in actions:
+            actions["associated_trips"] = "cast(EXCLUDED.associated_trips as uuid[])"
+    else:
+        if "associated_trip" not in actions:
+            actions["associated_trip"] = "cast(EXCLUDED.associated_trip as uuid)"
+
+    return condition, actions
+
+
+def trips_conflict_update(columns, actions, version=None):
+    """
+    Create a tuple for generating the trips ON CONFLICT UPDATE statement.
+    """
+    condition, _ = prepare_conflict_update(columns, version)
+    return condition, actions
 
 
 def env():
@@ -85,39 +109,15 @@ def env():
     return dict(user=user, password=password, db=db, host=host, port=port)
 
 
-def status_changes_conflict_update(columns, actions, version=None):
-    """
-    Create a tuple for generating the status_changes ON CONFLICT UPDATE statement.
-    """
-    condition, version = _prepare_conflict_update(columns, version)
-
-    if version < mds.Version("0.3.0"):
-        if "associated_trips" not in actions:
-            actions["associated_trips"] = "cast(EXCLUDED.associated_trips as uuid[])"
-    else:
-        if "associated_trip" not in actions:
-            actions["associated_trip"] = "cast(EXCLUDED.associated_trip as uuid)"
-
-    return condition, actions
-
-
-def trips_conflict_update(columns, actions, version=None):
-    """
-    Create a tuple for generating the trips ON CONFLICT UPDATE statement.
-    """
-    condition, _ = _prepare_conflict_update(columns, version)
-    return condition, actions
-
-
 def load(datasource, record_type, **kwargs):
     """
     Load data into a database.
     """
+    print(f"Loading {record_type}")
+
     columns = kwargs.pop("columns", [])
     if len(columns) == 0:
         columns = COLUMNS[record_type]
-
-    _kwargs = dict(table=record_type, drop_duplicates=columns)
 
     actions = kwargs.pop("update_actions", [])
 
@@ -133,14 +133,13 @@ def load(datasource, record_type, **kwargs):
     version = mds.Version(kwargs.pop("version", mds.Version.mds_lower()))
     stage_first = int(kwargs.pop("stage_first", True))
 
-    _env = dict(stage_first=stage_first, **env())
-    db = kwargs.get("db", mds.Database(**_env))
+    db_config = dict(stage_first=stage_first, version=version, **env())
+    db = kwargs.get("db", mds.Database(**db_config))
 
-    print(f"Loading {record_type}")
-
+    load_config = dict(table=record_type, drop_duplicates=columns)
     if record_type == mds.STATUS_CHANGES:
-        _kwargs["on_conflict_update"] = status_changes_conflict_update(columns, actions, version) if conflict_update else None
-        db.load_status_changes(datasource, **_kwargs)
+        load_config["on_conflict_update"] = status_changes_conflict_update(columns, actions, version) if conflict_update else None
+        db.load_status_changes(datasource, **load_config)
     elif record_type == mds.TRIPS:
-        _kwargs["on_conflict_update"] = trips_conflict_update(columns, actions, version) if conflict_update else None
-        db.load_trips(datasource, **_kwargs)
+        load_config["on_conflict_update"] = trips_conflict_update(columns, actions, version) if conflict_update else None
+        db.load_trips(datasource, **load_config)
