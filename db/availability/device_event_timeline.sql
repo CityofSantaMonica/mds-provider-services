@@ -30,7 +30,8 @@ SELECT
     event_time,
     csm_parse_feature_geom(event_location) AS event_location,
     battery_pct,
-    associated_trips,
+    publication_time,
+    associated_trip,
     row_number() OVER (PARTITION BY provider_id, vehicle_type, device_id ORDER BY event_time) AS row_num
 FROM
     (SELECT -- the non-duplicated records
@@ -45,7 +46,8 @@ FROM
         event_time,
         event_location,
         battery_pct,
-        associated_trips
+        publication_time,
+        associated_trip
         FROM
             (SELECT -- the duplicate records
                 _left.provider_id,
@@ -59,7 +61,8 @@ FROM
                 _left.event_time,
                 _left.event_location,
                 _left.battery_pct,
-                _left.associated_trips,
+                _left.publication_time,
+                _left.associated_trip,
                 _left.row_num,
                 _right.row_num IS NULL AS condition
             FROM

@@ -20,6 +20,5 @@ else
         --file trips/route_points.sql \
         --file trips/routes.sql \
         --file trips/process_trip_routes.sql \
-        --file trips/csm_trips.sql \
-        --file trips/daily.sql
+        --file trips/csm_trips.sql
 fi
