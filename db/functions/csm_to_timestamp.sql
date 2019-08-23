@@ -3,14 +3,14 @@ CREATE OR REPLACE FUNCTION csm_to_timestamp(double precision)
     RETURNS timestamptz
     LANGUAGE plpgsql
     STABLE
-AS $BODY$
-
-select
-    case
-        when to_timestamp($1) > now() then
-            to_timestamp($1 / 1000.0)
-        else
-            to_timestamp($1)
-    end
-
-$BODY$;
+AS $FUNCTION$
+BEGIN
+    SELECT
+        CASE
+            WHEN to_timestamp($1) > now() THEN
+                to_timestamp($1 / 1000.0)
+            ELSE
+                to_timestamp($1)
+        END;
+END;
+$FUNCTION$

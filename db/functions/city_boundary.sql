@@ -2,7 +2,8 @@ CREATE OR REPLACE FUNCTION csm_city_boundary()
     RETURNS geometry
     LANGUAGE plpgsql
     IMMUTABLE PARALLEL SAFE
-AS $BODY$
+AS $FUNCTION$
+BEGIN
 
 SELECT
     st_setsrid(st_geomfromgeojson('{
@@ -3827,5 +3828,6 @@ SELECT
                         ]
                     ]
                 ]
-        }'), 4326) AS city_boundary
-$BODY$;
+        }'), 4326) AS city_boundary;
+END;
+$FUNCTION$

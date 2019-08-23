@@ -2,8 +2,9 @@ CREATE OR REPLACE FUNCTION csm_downtown_district()
     RETURNS geometry
     LANGUAGE plpgsql
     IMMUTABLE PARALLEL SAFE
-AS $BODY$
+AS $FUNCTION$
 
+BEGIN
 SELECT
     st_setsrid(st_geomfromgeojson('{
             "type": "Polygon",
@@ -207,5 +208,6 @@ SELECT
                         ]
                     ]
                 ]
-        }'), 4326) AS downtown_district
-$BODY$;
+        }'), 4326) AS downtown_district;
+END;
+$FUNCTION$
