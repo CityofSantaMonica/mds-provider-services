@@ -1,7 +1,7 @@
 -- json input
 CREATE OR REPLACE FUNCTION csm_parse_feature_geom(json)
     RETURNS geometry
-    LANGUAGE 'sql'
+    LANGUAGE plpgsql
     IMMUTABLE PARALLEL SAFE
 AS $BODY$
 
@@ -12,7 +12,7 @@ $BODY$;
 -- jsonb input
 CREATE OR REPLACE FUNCTION csm_parse_feature_geom(jsonb)
     RETURNS geometry
-    LANGUAGE 'sql'
+    LANGUAGE plpgsql
     IMMUTABLE PARALLEL SAFE
 AS $BODY$
 

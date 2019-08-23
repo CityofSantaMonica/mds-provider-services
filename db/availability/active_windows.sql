@@ -19,5 +19,4 @@ SELECT
 FROM
     csm_trips
 
-WITH NO DATA
-;
+WITH NO DATA;

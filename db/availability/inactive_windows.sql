@@ -1,7 +1,6 @@
 -- Windows of time a given provider's device was marked as available for rental
 
-DROP MATERIALIZED VIEW IF EXISTS inactive_windows CASCADE
-;
+DROP MATERIALIZED VIEW IF EXISTS inactive_windows CASCADE;
 
 CREATE MATERIALIZED VIEW inactive_windows AS
 
@@ -30,5 +29,4 @@ FROM
 WHERE
     avail.event_type = 'available'::event_types
 
-WITH NO DATA
-;
+WITH NO DATA;

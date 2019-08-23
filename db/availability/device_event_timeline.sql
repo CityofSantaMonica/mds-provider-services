@@ -82,5 +82,4 @@ FROM
             dupe.condition
     ) no_dupe
 
-WITH NO DATA
-;
+WITH NO DATA;

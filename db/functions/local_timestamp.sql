@@ -1,7 +1,7 @@
 -- timestamp -> timestamptz
 CREATE OR REPLACE FUNCTION csm_local_timestamp(timestamp = clock_timestamp())
     RETURNS timestamptz
-    LANGUAGE 'sql'
+    LANGUAGE plpgsql
     STABLE
 AS $BODY$
 
@@ -12,7 +12,7 @@ $BODY$;
 -- timestamptz -> timestamp
 CREATE OR REPLACE FUNCTION csm_local_timestamp(timestamptz = clock_timestamp())
     RETURNS timestamp
-    LANGUAGE 'sql'
+    LANGUAGE plpgsql
     STABLE
 AS $BODY$
 

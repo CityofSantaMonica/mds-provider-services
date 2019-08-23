@@ -1,6 +1,6 @@
 CREATE OR REPLACE FUNCTION csm_city_boundary()
     RETURNS geometry
-    LANGUAGE 'sql'
+    LANGUAGE plpgsql
     IMMUTABLE PARALLEL SAFE
 AS $BODY$
 

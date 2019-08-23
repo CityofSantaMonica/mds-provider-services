@@ -55,13 +55,10 @@ FROM
 ORDER BY
     (provider_name, vehicle_type, start_time, end_time)
 
-WITH NO DATA
-;
+WITH NO DATA;
 
 CREATE INDEX csm_availability_windows_timestamp_idx
-    ON csm_availability_windows (provider_name, vehicle_type, start_time, end_time desc)
-;
+    ON csm_availability_windows (provider_name, vehicle_type, start_time, end_time desc);
 
 CREATE INDEX csm_availability_windows_timestamp_local_idx
-    ON csm_availability_windows (provider_name, vehicle_type, start_time_local, end_time_local desc)
-;
+    ON csm_availability_windows (provider_name, vehicle_type, start_time_local, end_time_local desc);

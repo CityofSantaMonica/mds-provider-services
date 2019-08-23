@@ -1,6 +1,6 @@
 CREATE OR REPLACE FUNCTION csm_downtown_district()
     RETURNS geometry
-    LANGUAGE 'sql'
+    LANGUAGE plpgsql
     IMMUTABLE PARALLEL SAFE
 AS $BODY$
 

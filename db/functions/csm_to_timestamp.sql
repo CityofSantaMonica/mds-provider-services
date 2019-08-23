@@ -1,7 +1,7 @@
 -- double -> timestamptz
 CREATE OR REPLACE FUNCTION csm_to_timestamp(double precision)
     RETURNS timestamptz
-    LANGUAGE 'sql'
+    LANGUAGE plpgsql
     STABLE
 AS $BODY$
 
