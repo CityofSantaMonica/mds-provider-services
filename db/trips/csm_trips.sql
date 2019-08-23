@@ -26,5 +26,4 @@ FROM
 WHERE
     routes.in_csm_points > 0
 
-WITH NO DATA
-;
+WITH NO DATA;

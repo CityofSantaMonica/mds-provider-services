@@ -7,9 +7,8 @@ export PGUSER=$MDS_USER
 export PGPASSWORD=$MDS_PASSWORD
 
 if [[ "$1" == "refresh" ]]; then
-    echo "refreshing trip routes"
+    echo "refreshing trips"
     psql -v ON_ERROR_STOP=1 --host "$POSTGRES_HOSTNAME" --dbname "$MDS_DB" << EOSQL
-    SELECT * FROM csm_process_trip_routes();
     REFRESH MATERIALIZED VIEW csm_trips;
 EOSQL
 else
@@ -17,8 +16,6 @@ else
     psql -v ON_ERROR_STOP=1 \
         --host "$POSTGRES_HOSTNAME" \
         --dbname "$MDS_DB" \
-        --file trips/route_points.sql \
-        --file trips/routes.sql \
         --file trips/process_trip_routes.sql \
         --file trips/csm_trips.sql
 fi
