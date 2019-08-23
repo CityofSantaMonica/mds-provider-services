@@ -53,14 +53,14 @@ def filter(record_type, sources, **kwargs):
         if any([ex in description for ex in EXCEPTIONS]):
             return False, description
         # check for and remove unexpected data, returning the removed data
-        unexpected_prop = UNEXPECTED_PROP_REGEX.search(description)
+        unexpected_prop = UNEXPECTED_PROP_REGEX.search(" ".join(description))
         if unexpected_prop:
             prop = unexpected_prop.group(1)
             data = { prop: error.instance[prop] }
             del error.instance[prop]
             return False, data
         # check for invalid data item, return index
-        item_error = ITEM_ERROR_REGEX.search(description)
+        item_error = ITEM_ERROR_REGEX.search(" ".join(description))
         if item_error:
             rt, index = item_error.group(1), int(item_error.group(2))
             if rt == record_type:
