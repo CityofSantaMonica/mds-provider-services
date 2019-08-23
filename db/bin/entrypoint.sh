@@ -18,7 +18,6 @@ done
 
 case $sub in
     avail|availability) cmd="bin/availability.sh" ;;
-    deployments) cmd="bin/deployments.sh" ;;
     file) cmd="psql -v ON_ERROR_STOP=1 --host ${POSTGRES_HOSTNAME} --dbname ${MDS_DB} --file" ;;
     functions) cmd="bin/functions.sh" ;;
     init) cmd="bin/initdb.sh" ;;
@@ -27,6 +26,7 @@ case $sub in
     query) cmd="psql -v ON_ERROR_STOP=1 --host ${POSTGRES_HOSTNAME} --dbname ${MDS_DB} --command" ;;
     reset) cmd="bin/reset.sh" ;;
     routes|trips) cmd="bin/trips.sh" ;;
+    status) cmd="bin/status.sh" ;;
 esac
 
 export PGUSER=$MDS_USER
