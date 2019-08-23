@@ -21,7 +21,3 @@ CREATE TABLE trips (
     sequence_id bigserial not null,
     CONSTRAINT pk_trips PRIMARY KEY (provider_id, trip_id)
 );
-
-CREATE INDEX trips_sequence_id_idx
-    ON trips USING brin (sequence_id)
-;

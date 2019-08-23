@@ -17,7 +17,3 @@ CREATE TABLE status_changes (
     sequence_id bigserial not null,
     CONSTRAINT unique_event UNIQUE (provider_id, device_id, event_type, event_type_reason, event_time)
 );
-
-CREATE INDEX status_changes_sequence_id_idx
-    ON status_changes USING brin (sequence_id)
-;
