@@ -35,12 +35,17 @@ def get_validator(record_type, ref):
         raise ValueError(f"Invalid record_type: {record_type}")
 
 
-def filter(record_type, sources, **kwargs):
+def filter(record_type, sources, version, **kwargs):
     """
     Keep only valid records from each source.
     """
     if not all([isinstance(d, dict) and "data" in d for d in sources]):
         raise TypeError("Sources appears to be the wrong data type. Expected a list of payload dicts.")
+
+    source_versions = [mds.Version(d["version"]) for d in sources]
+
+    if any([version != v for v in source_versions]):
+        raise mds.versions.UnexpectedVersionError(source_versions[0], version)
 
     def _failure(error):
         """
@@ -71,7 +76,7 @@ def filter(record_type, sources, **kwargs):
     seen = 0
     passed = 0
     valid = []
-    validator = kwargs.get("validator", get_validator(record_type, kwargs["version"]))
+    validator = kwargs.get("validator", get_validator(record_type, version))
 
     print(f"Validating {record_type} @ {validator.ref}")
 
