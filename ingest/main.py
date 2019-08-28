@@ -16,6 +16,7 @@ import pathlib
 import mds
 import mds.encoding
 
+import common
 import database
 import ingest
 import validation
@@ -176,40 +177,6 @@ def setup_cli():
     return parser, parser.parse_args()
 
 
-def parse_time_range(cli):
-    """
-    Returns a valid range tuple (start_time, end_time) given an object with some mix of:
-
-    * start_time
-    * end_time
-    * duration
-
-    If both start_time and end_time are present, use those. Otherwise, compute from duration.
-    """
-    decoder = mds.encoding.TimestampDecoder(version=cli.version)
-
-    if cli.start_time is not None and cli.end_time is not None:
-        start_time, end_time = decoder.decode(cli.start_time), decoder.decode(cli.end_time)
-        return (start_time, end_time) if start_time <= end_time else (end_time, start_time)
-
-    duration = datetime.timedelta(seconds=cli.duration)
-
-    if cli.start_time is not None:
-        start_time = decoder.decode(cli.start_time)
-        return start_time, start_time + duration
-
-    if cli.end_time is not None:
-        end_time = decoder.decode(cli.end_time)
-        return end_time - duration, end_time
-
-
-def count_seconds(ts):
-    """
-    Return the number of seconds since a given UNIX datetime.
-    """
-    return round((datetime.datetime.utcnow() - ts).total_seconds())
-
-
 if __name__ == "__main__":
     now = datetime.datetime.utcnow()
 
@@ -225,20 +192,14 @@ if __name__ == "__main__":
 
     print(f"Starting ingestion run: {now.isoformat()}")
 
-    if args.config:
-        print("Reading configuration file:", args.config)
-        config = mds.ConfigFile(args.config, args.provider).dump()
-    elif pathlib.Path("./config.json").exists():
-        print("Found configuration file, reading...")
-        config = mds.ConfigFile("./config.json", args.provider).dump()
-    else:
-        print("No configuration file found.")
-        config = {}
+    config = common.get_config(args.provider, args.config)
 
     # assert the version parameter
     args.version = mds.Version(config.pop("version", args.version))
     if args.version.unsupported:
         raise mds.UnsupportedVersionError(args.version)
+
+    print(f"Referencing MDS @ {args.version}")
 
     # shortcut for loading from files
     if args.source:
@@ -267,9 +228,7 @@ if __name__ == "__main__":
     backfill = all([args.start_time, args.end_time, args.duration])
 
     # parse into a valid range
-    args.start_time, args.end_time = parse_time_range(args)
-
-    print(f"Referencing MDS @ {args.version}")
+    args.start_time, args.end_time = common.parse_time_range(args.version, **vars(args))
 
     # acquire the Provider instance
     if args.registry and pathlib.Path(args.registry).is_file():
@@ -298,4 +257,4 @@ if __name__ == "__main__":
         if args.trips:
             ingest.run(mds.TRIPS, **kwargs)
 
-    print(f"Finished ingestion ({count_seconds(now)}s)")
+    print(f"Finished ingestion ({common.count_seconds(now)}s)")

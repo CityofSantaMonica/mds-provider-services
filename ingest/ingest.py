@@ -7,6 +7,7 @@ import time
 
 import mds
 
+import common
 import database
 import validation
 
@@ -85,45 +86,3 @@ def run(record_type, **kwargs):
         database.load(datasource, record_type, **kwargs, version=version)
 
     print(f"{record_type} complete")
-
-
-def acquire(record_type, **kwargs):
-    """
-    Acquire provider data as in-memory objects.
-    """
-    if kwargs.get("source"):
-        source = kwargs.get("source")
-        print(f"Reading {record_type} from {source}")
-        payloads = mds.DataFile(record_type, source).load_payloads()
-        return payloads
-
-    # required for API calls
-    client = kwargs.pop("client")
-    start_time = kwargs.pop("start_time")
-    end_time = kwargs.pop("end_time")
-
-    paging = not kwargs.get("no_paging")
-    rate_limit = kwargs.get("rate_limit")
-    version = kwargs.get("version")
-
-    # package up for API requests
-    _kwargs = dict(paging=paging, rate_limit=rate_limit)
-
-    print(f"Requesting {record_type} from {client.provider.provider_name}")
-    print(f"Time range: {start_time.isoformat()} to {end_time.isoformat()}")
-
-    if record_type == mds.STATUS_CHANGES:
-        _kwargs["start_time"] = start_time
-        _kwargs["end_time"] = end_time
-    elif record_type == mds.TRIPS:
-        _kwargs["device_id"] = kwargs.get("device_id")
-        _kwargs["vehicle_id"] = kwargs.get("vehicle_id")
-
-        if version < mds.Version("0.3.0"):
-            _kwargs["start_time"] = start_time
-            _kwargs["end_time"] = end_time
-        else:
-            _kwargs["min_end_time"] = start_time
-            _kwargs["max_end_time"] = end_time
-
-    return client.get(record_type, **_kwargs)
