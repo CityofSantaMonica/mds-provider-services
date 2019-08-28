@@ -3,6 +3,7 @@ Validate MDS provider data against the published JSON schemas.
 """
 
 import json
+import os
 import re
 
 import mds
@@ -15,7 +16,8 @@ EXCEPTIONS = [
     "Payload error in links.first",
     "Payload error in links.last",
     ".associated_trips: None is not of type 'array'",
-    ".parking_verification_url: None is not of type 'string'"
+    ".parking_verification_url: None is not of type 'string'",
+    "valid under each of {'required': ['associated_trip']}"
 ]
 
 ITEM_ERROR_REGEX = re.compile("Item error in (\w+)\[(\d+)\]")
@@ -53,19 +55,20 @@ def filter(record_type, sources, version, **kwargs):
 
         Attempt to recover from certain types of errors and return additional context in a tuple.
         """
-        description = error.describe()
+        # describing an error returns a list of messages, so join with a linesep
+        description = os.linesep.join(error.describe())
         # check for exceptions
         if any([ex in description for ex in EXCEPTIONS]):
             return False, description
         # check for and remove unexpected data, returning the removed data
-        unexpected_prop = UNEXPECTED_PROP_REGEX.search(" ".join(description))
+        unexpected_prop = UNEXPECTED_PROP_REGEX.search(description)
         if unexpected_prop:
             prop = unexpected_prop.group(1)
             data = { prop: error.instance[prop] }
             del error.instance[prop]
             return False, data
         # check for invalid data item, return index
-        item_error = ITEM_ERROR_REGEX.search(" ".join(description))
+        item_error = ITEM_ERROR_REGEX.search(description)
         if item_error:
             rt, index = item_error.group(1), int(item_error.group(2))
             if rt == record_type:
