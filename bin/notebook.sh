@@ -6,4 +6,4 @@ shift
 args="$@"
 notebook="jupyter notebook . --allow-root --ip=0.0.0.0 --port=8888 --no-browser"
 
-$here/bash.sh --service-ports "$service" "-c" "$notebook $args"
+$here/bash.sh --service-ports --workdir="//usr/src/mds" "$service" "-c" "$notebook $args"
