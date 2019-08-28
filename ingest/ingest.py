@@ -67,18 +67,18 @@ def run(record_type, **kwargs):
     if version.unsupported:
         raise mds.UnsupportedVersionError(version)
 
-    datasource = acquire(record_type, **kwargs, version=version)
-
-    if not kwargs.pop("no_validate", False):
-        datasource = validation.filter(record_type, datasource, version=version)
-    else:
-        print("Skipping data validation")
+    datasource = common.get_data(record_type, **kwargs, version=version)
 
     # output to files if needed
     output = kwargs.pop("output", None)
     if output:
         print(f"Writing data files to {output}")
         mds.DataFile(record_type, output).dump_payloads(datasource)
+
+    if not kwargs.pop("no_validate", False):
+        datasource = validation.filter(record_type, datasource, version=version)
+    else:
+        print("Skipping data validation")
 
     # load to database
     loading = not kwargs.pop("no_load", False)
