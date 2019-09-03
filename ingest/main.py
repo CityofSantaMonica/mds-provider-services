@@ -14,11 +14,9 @@ import json
 import pathlib
 
 import mds
-import mds.encoding
 
 import common
 import database
-import ingest
 import validation
 
 
@@ -177,6 +175,82 @@ def setup_cli():
     return parser, parser.parse_args()
 
 
+def backfill(record_type, **kwargs):
+    """
+    Step backwards from end_time to start_time, running the ingestion flow in sliding blocks of size duration.
+
+    Subsequent blocks overlap the previous block by duration/2 seconds.
+    Buffers on both ends ensure events starting or ending near a time boundary are captured.
+
+    For example:
+
+    start_time=datetime(2018,12,31,0,0,0), end_time=datetime(2019,1,1,0,0,0), duration=21600
+
+    Results in the following backfill requests:
+
+    * 2018-12-31T21:00:00 to 2019-01-01T03:00:00
+    * 2018-12-31T18:00:00 to 2018-12-31T00:00:00
+    * 2018-12-31T15:00:00 to 2018-12-31T21:00:00
+    * 2018-12-31T12:00:00 to 2018-12-31T18:00:00
+    * 2018-12-31T09:00:00 to 2018-12-31T15:00:00
+    * 2018-12-31T06:00:00 to 2018-12-31T12:00:00
+    * 2018-12-31T03:00:00 to 2018-12-31T09:00:00
+    * 2018-12-31T00:00:00 to 2018-12-31T06:00:00
+    * 2018-12-30T21:00:00 to 2018-12-31T03:00:00
+    """
+    kwargs["no_paging"] = False
+    rate_limit = kwargs.get("rate_limit")
+
+    duration = datetime.timedelta(seconds=kwargs.pop("duration"))
+    offset = duration / 2
+    end = kwargs.pop("end_time") + offset
+    start = kwargs.pop("start_time")
+
+    print(f"Beginning backfill: {start.isoformat()} to {end.isoformat()}, size {duration.total_seconds()}s")
+
+    while end >= start:
+        _start = end - duration
+        ingest(record_type, **kwargs, start_time=_start, end_time=end)
+        end = end - offset
+
+        if rate_limit:
+            time.sleep(rate_limit)
+
+
+def ingest(record_type, **kwargs):
+    """
+    Run the ingestion flow:
+
+    1. acquire data from files or API
+    2. optionally validate data, filtering invalid records
+    3. optionally write data to output files
+    4. optionally load valid records into the database
+    """
+    version = mds.Version(kwargs.pop("version", mds.Version.mds_lower()))
+    if version.unsupported:
+        raise mds.UnsupportedVersionError(version)
+
+    datasource = common.get_data(record_type, **kwargs, version=version)
+
+    # output to files if needed
+    output = kwargs.pop("output", None)
+    if output:
+        common.write_data(record_type, datasource, output)
+
+    # validation and filtering
+    if not kwargs.pop("no_validate", False):
+        datasource = validation.filter(record_type, datasource, version=version)
+    else:
+        print("Skipping data validation")
+
+    # load to database
+    loading = not kwargs.pop("no_load", False)
+    if loading and len(datasource) > 0:
+        database.load(datasource, record_type, **kwargs, version=version)
+
+    print(f"{record_type} complete")
+
+
 if __name__ == "__main__":
     now = datetime.datetime.utcnow()
 
@@ -204,9 +278,9 @@ if __name__ == "__main__":
     # shortcut for loading from files
     if args.source:
         if args.status_changes:
-            ingest.run(mds.STATUS_CHANGES, **vars(args))
+            ingest(mds.STATUS_CHANGES, **vars(args))
         if args.trips:
-            ingest.run(mds.TRIPS, **vars(args))
+            ingest(mds.TRIPS, **vars(args))
         # finished
         print(f"Finished ingestion ({count_seconds(now)}s)")
         exit(0)
@@ -225,7 +299,7 @@ if __name__ == "__main__":
         exit(1)
 
     # backfill mode if all 3 time parameters given
-    backfill = all([args.start_time, args.end_time, args.duration])
+    backfill_mode = all([args.start_time, args.end_time, args.duration])
 
     # parse into a valid range
     args.start_time, args.end_time = common.parse_time_range(args.version, **vars(args))
@@ -245,16 +319,15 @@ if __name__ == "__main__":
     client = mds.Client(provider, version=args.version)
     kwargs = dict(client=client, **vars(args))
 
-    if backfill:
+    if backfill_mode:
         if args.status_changes:
-            ingest.backfill(mds.STATUS_CHANGES, **kwargs)
+            backfill(mds.STATUS_CHANGES, **kwargs)
         if args.trips:
-            ingest.backfill(mds.TRIPS, **kwargs)
-
+            backfill(mds.TRIPS, **kwargs)
     else:
         if args.status_changes:
-            ingest.run(mds.STATUS_CHANGES, **kwargs)
+            ingest(mds.STATUS_CHANGES, **kwargs)
         if args.trips:
-            ingest.run(mds.TRIPS, **kwargs)
+            ingest(mds.TRIPS, **kwargs)
 
     print(f"Finished ingestion ({common.count_seconds(now)}s)")

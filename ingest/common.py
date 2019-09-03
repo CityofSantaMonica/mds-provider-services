@@ -50,26 +50,26 @@ def get_data(record_type, **kwargs):
     version = kwargs.get("version")
 
     # package up for API requests
-    _kwargs = dict(paging=paging, rate_limit=rate_limit)
+    api_kwargs = dict(paging=paging, rate_limit=rate_limit)
 
     print(f"Requesting {record_type} from {client.provider.provider_name}")
     print(f"Time range: {start_time.isoformat()} to {end_time.isoformat()}")
 
     if record_type == mds.STATUS_CHANGES:
-        _kwargs["start_time"] = start_time
-        _kwargs["end_time"] = end_time
+        api_kwargs["start_time"] = start_time
+        api_kwargs["end_time"] = end_time
     elif record_type == mds.TRIPS:
-        _kwargs["device_id"] = kwargs.get("device_id")
-        _kwargs["vehicle_id"] = kwargs.get("vehicle_id")
+        api_kwargs["device_id"] = kwargs.get("device_id")
+        api_kwargs["vehicle_id"] = kwargs.get("vehicle_id")
 
         if version < mds.Version("0.3.0"):
-            _kwargs["start_time"] = start_time
-            _kwargs["end_time"] = end_time
+            api_kwargs["start_time"] = start_time
+            api_kwargs["end_time"] = end_time
         else:
-            _kwargs["min_end_time"] = start_time
-            _kwargs["max_end_time"] = end_time
+            api_kwargs["min_end_time"] = start_time
+            api_kwargs["max_end_time"] = end_time
 
-    return client.get(record_type, **_kwargs)
+    return client.get(record_type, **api_kwargs)
 
 
 def parse_time_range(version, **kwargs):
@@ -97,3 +97,11 @@ def parse_time_range(version, **kwargs):
     if "end_time" in kwargs:
         end_time = decoder.decode(kwargs["end_time"])
         return end_time - duration, end_time
+
+
+def write_data(record_type, datasource, output_dir):
+    """
+    Write data of the given type to the output directory.
+    """
+    print(f"Writing data files to {output_dir}")
+    mds.DataFile(record_type, output_dir).dump_payloads(datasource)
