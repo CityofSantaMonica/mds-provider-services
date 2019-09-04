@@ -140,3 +140,47 @@ Results in the following backfill requests:
 * `2018-12-30T21:00:00` to `2018-12-31T03:00:00`
 
 Backfills ignore the `--no_paging` flag, always requesting all pages.
+
+## Validation
+
+A corollary service to validate a Provider's data feeds and/or local MDS payload files.
+
+After customizing your Provider info in a `config.json` file:
+
+```bash
+docker-compose run [--rm] validate [OPTIONS] source [source ...]
+```
+
+Where `source` is one or more `provider_name`, `provider_id`, or file paths to MDS payload files. 
+
+### Options
+
+Many of the options work the same as with the `ingest` service:
+
+```bash
+$ docker-compose run validate --help
+
+usage: validation.py [-h] [--auth_type AUTH_TYPE] [--config CONFIG]
+                     [-H HEADERS] [--output OUTPUT] [--version VERSION]
+                     source [source ...]
+
+Validate MDS data feeds.
+
+positional arguments:
+  source                The name or identifier of a provider to validate; or
+                        One or more paths to (directories containing) MDS
+                        Provider JSON file(s) to validate.
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --auth_type AUTH_TYPE
+                        The type used for the Authorization header for
+                        requests to the provider (e.g. Basic, Bearer).
+  --config CONFIG       Path to a provider configuration file to use.
+  -H HEADERS, --header HEADERS
+                        One or more 'Header: value' combinations, sent with
+                        each request.
+  --output OUTPUT       Write results to json files in this directory.
+  --version VERSION     The release version at which to reference MDS, e.g.
+                        0.3.1
+```

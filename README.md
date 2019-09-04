@@ -17,6 +17,7 @@ The services are organized around specific functions. More detailed explanation 
 | [`fake`](fake/) | Generate fake `provider` data for testing and development |
 | [`ingest`](ingest/) | Ingest `provider` data from different sources |
 | [`server`](#local-postgres-server) | Local [postgres][postgres] database server |
+| [`validate`](ingest/README.md#validation) | Validate `provider` data feeds and/or local MDS payload files. |
 
 ## Getting Started
 

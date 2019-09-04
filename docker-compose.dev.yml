@@ -86,3 +86,12 @@ services:
       - POSTGRES_PASSWORD
     ports:
       - "5432:5432"
+
+  validate:
+    image: mds_provider_python
+    container_name: mds_provider_validate
+    working_dir: /usr/src/mds/ingest
+    entrypoint: ["python", "validation.py"]
+    volumes:
+      - ./ingest:/usr/src/mds/ingest
+      - ./data:/usr/src/mds/ingest/data

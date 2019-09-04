@@ -239,7 +239,8 @@ def ingest(record_type, **kwargs):
 
     # validation and filtering
     if not kwargs.pop("no_validate", False):
-        datasource = validation.filter(record_type, datasource, version=version)
+        print(f"Validating {record_type} @ {version}")
+        datasource = validation.keep_valid(record_type, datasource, version=version)
     else:
         print("Skipping data validation")
 
