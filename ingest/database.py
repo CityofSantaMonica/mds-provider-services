@@ -6,6 +6,8 @@ import os
 
 import mds
 
+import common
+
 
 # default columns defining a unique record
 COLUMNS = {
@@ -40,7 +42,7 @@ def prepare_conflict_update(columns, version=None):
     """
     Create a tuple for generating an ON CONFLICT UPDATE statement.
     """
-    version = version or mds.Version.mds_lower()
+    version = version or common.default_version
     if version.unsupported:
         raise mds.UnsupportedVersionError(version)
 
@@ -130,7 +132,7 @@ def load(datasource, record_type, **kwargs):
 
     conflict_update = len(actions) > 0
 
-    version = mds.Version(kwargs.pop("version", mds.Version.mds_lower()))
+    version = mds.Version(kwargs.pop("version", common.default_version))
     stage_first = int(kwargs.pop("stage_first", True))
 
     db_config = dict(stage_first=stage_first, version=version, **env())

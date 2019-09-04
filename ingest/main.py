@@ -168,8 +168,8 @@ def setup_cli():
     parser.add_argument(
         "--version",
         type=lambda v: mds.Version(v),
-        default=mds.Version("0.2.1"),
-        help="The release version at which to reference MDS, e.g. 0.3.1"
+        default=common.default_version,
+        help=f"The release version at which to reference MDS, e.g. {common.default_version}"
     )
 
     return parser, parser.parse_args()
@@ -226,7 +226,7 @@ def ingest(record_type, **kwargs):
     3. optionally write data to output files
     4. optionally load valid records into the database
     """
-    version = mds.Version(kwargs.pop("version", mds.Version.mds_lower()))
+    version = mds.Version(kwargs.pop("version", common.default_version))
     if version.unsupported:
         raise mds.UnsupportedVersionError(version)
 

@@ -8,6 +8,9 @@ import pathlib
 import mds
 
 
+default_version = mds.Version("0.3.2")
+
+
 def count_seconds(ts):
     """
     Return the number of seconds since a given UNIX datetime.
@@ -97,11 +100,3 @@ def parse_time_range(version, **kwargs):
     if "end_time" in kwargs:
         end_time = decoder.decode(kwargs["end_time"])
         return end_time - duration, end_time
-
-
-def write_data(record_type, datasource, output_dir):
-    """
-    Write data of the given type to the output directory.
-    """
-    print(f"Writing data files to {output_dir}")
-    mds.DataFile(record_type, output_dir).dump_payloads(datasource)
