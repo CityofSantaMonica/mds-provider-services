@@ -6,6 +6,7 @@ import argparse
 import datetime
 import json
 import os
+import pathlib
 import re
 
 import mds
@@ -247,10 +248,11 @@ if __name__ == "__main__":
         print(f"Validating {source} @ {args.version}")
 
         results = []
-        try:
-            results = _validate_provider(source, **kwargs)
-        except:
+
+        if pathlib.Path(source).exists():
             results = _validate_file(source, **kwargs)
+        else:
+            results = _validate_provider(source, **kwargs)
 
         if len(results) == 0:
             continue
