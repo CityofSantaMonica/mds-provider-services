@@ -242,18 +242,50 @@ if __name__ == "__main__":
 
     print(f"Starting validation run: {now.isoformat()}")
 
-    sources = kwargs.pop("source")
-    for source in sources:
-        results = []
+    for source in kwargs.pop("source"):
+        print()
+        print(f"Validating {source} @ {args.version}")
 
+        results = []
         try:
             results = _validate_provider(source, **kwargs)
         except:
             results = _validate_file(source, **kwargs)
 
-        print(f"Validation results for '{source}'")
-        for (record_type, version, result) in results:
-            valid = "valid \u2714" if result else "invalid \U0001D5EB"
-            print(f"  - {record_type} @ {version}: {valid}")
+        if len(results) == 0:
+            continue
 
+        print(f"Validation results for '{source}'")
+        print()
+
+        for record_type, version, original, valid, errors, invalid in results:
+            seen = sum([len(o["data"][record_type]) for o in original])
+            passed = sum([len(v["data"][record_type]) for v in valid])
+            removed = sum([len(i["data"][record_type]) for i in invalid])
+            result = len(original) == len(valid) and seen == passed
+            icon = "\u2714" if result else "\U0001D5EB"
+
+            print(f"{icon} {record_type}, version {version}")
+            print(f"  {seen} records, {passed} valid, {removed} invalid")
+
+            if len(errors) > 0:
+                print(f"  Errors ({len(errors)} total)")
+                for error in errors:
+                    print()
+                    for line in error.describe():
+                        print(f"    {line}")
+
+            if args.output:
+                print()
+                print(f"Writing {record_type} to {args.output}")
+
+                f = mds.DataFile(record_type, args.output)
+
+                f.dump_payloads(original, file_name=f"{source}_{record_type}_original.json")
+                f.dump_payloads(valid, file_name=f"{source}_{record_type}_valid.json")
+
+                if len(invalid) > 0:
+                    f.dump_payloads(invalid, file_name=f"{source}_{record_type}_invalid.json")
+
+    print()
     print(f"Finished validation ({common.count_seconds(now)}s)")
