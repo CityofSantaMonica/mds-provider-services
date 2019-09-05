@@ -23,13 +23,10 @@ def get_config(provider, config_path=None):
     Obtain provider's configuration data from the given file path, or the default file path if None.
     """
     if config_path:
-        print("Reading configuration file:", config_path)
         return mds.ConfigFile(config_path, provider).dump()
     elif pathlib.Path("./config.json").exists():
-        print("Found configuration file, reading...")
         return mds.ConfigFile("./config.json", provider).dump()
     else:
-        print("No configuration file found.")
         return {}
 
 
