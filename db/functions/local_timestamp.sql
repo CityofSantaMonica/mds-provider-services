@@ -1,21 +1,17 @@
 -- timestamp -> timestamptz
 CREATE OR REPLACE FUNCTION csm_local_timestamp(timestamp = clock_timestamp())
     RETURNS timestamptz
-    LANGUAGE plpgsql
+    LANGUAGE sql
     STABLE
-AS $FUNCTION$
-BEGIN
+AS $BODY$
     SELECT timezone('America/Los_Angeles', $1);
-END;
-$FUNCTION$;
+$BODY$;
 
 -- timestamptz -> timestamp
 CREATE OR REPLACE FUNCTION csm_local_timestamp(timestamptz = clock_timestamp())
     RETURNS timestamp
-    LANGUAGE plpgsql
+    LANGUAGE sql
     STABLE
-AS $FUNCTION$
-BEGIN
+AS $BODY$
     SELECT timezone('America/Los_Angeles', $1);
-END;
-$FUNCTION$;
+$BODY$;
