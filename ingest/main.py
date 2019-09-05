@@ -283,7 +283,7 @@ if __name__ == "__main__":
         if args.trips:
             ingest(mds.TRIPS, **vars(args))
         # finished
-        print(f"Finished ingestion ({count_seconds(now)}s)")
+        print(f"Finished ingestion ({common.count_seconds(now)}s)")
         exit(0)
 
     # assert the time range parameters
@@ -303,7 +303,7 @@ if __name__ == "__main__":
     backfill_mode = all([args.start_time, args.end_time, args.duration])
 
     # parse into a valid range
-    args.start_time, args.end_time = common.parse_time_range(args.version, **vars(args))
+    args.start_time, args.end_time = common.parse_time_range(**vars(args))
 
     # acquire the Provider instance
     if args.registry and pathlib.Path(args.registry).is_file():

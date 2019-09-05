@@ -72,7 +72,7 @@ def get_data(record_type, **kwargs):
     return client.get(record_type, **api_kwargs)
 
 
-def parse_time_range(version, **kwargs):
+def parse_time_range(**kwargs):
     """
     Returns a valid range tuple (start_time, end_time) given some mix of:
 
@@ -82,18 +82,18 @@ def parse_time_range(version, **kwargs):
 
     If both start_time and end_time are given, use those. Otherwise, compute from duration.
     """
-    decoder = mds.encoding.TimestampDecoder(version=version)
+    decoder = mds.encoding.TimestampDecoder(version=kwargs["version"])
 
-    if "start_time" in kwargs and "end_time" in kwargs:
+    if "start_time" in kwargs and "end_time" in kwargs and kwargs["start_time"] and kwargs["end_time"]:
         start_time, end_time = decoder.decode(kwargs["start_time"]), decoder.decode(kwargs["end_time"])
         return (start_time, end_time) if start_time <= end_time else (end_time, start_time)
 
     duration = datetime.timedelta(seconds=kwargs["duration"])
 
-    if "start_time" in kwargs:
+    if "start_time" in kwargs and kwargs["start_time"]:
         start_time = decoder.decode(kwargs["start_time"])
         return start_time, start_time + duration
 
-    if "end_time" in kwargs:
+    if "end_time" in kwargs and kwargs["end_time"]:
         end_time = decoder.decode(kwargs["end_time"])
         return end_time - duration, end_time
