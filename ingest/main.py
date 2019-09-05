@@ -232,22 +232,36 @@ def ingest(record_type, **kwargs):
 
     datasource = common.get_data(record_type, **kwargs, version=version)
 
-    # output to files if needed
-    output = kwargs.pop("output", None)
-    if output:
-        common.write_data(record_type, datasource, output)
-
     # validation and filtering
     if not kwargs.pop("no_validate", False):
         print(f"Validating {record_type} @ {version}")
-        datasource = validation.keep_valid(record_type, datasource, version=version)
+
+        valid, errors, removed = validation.validate(record_type, datasource, version=version)
+
+        seen = sum([len(d["data"][record_type]) for d in datasource])
+        passed = sum([len(v["data"][record_type]) for v in valid])
+        failed = sum([len(r["data"][record_type]) for r in removed])
+
+        print(f"{seen} records, {passed} passed, {failed} failed")
     else:
         print("Skipping data validation")
+        valid = datasource
+        removed = None
+
+    # output to files if needed
+    output = kwargs.pop("output", None)
+    if output:
+        f = mds.DataFile(record_type, output)
+        f.dump_payloads(valid)
+        if removed:
+            f.dump_payloads(removed)
 
     # load to database
     loading = not kwargs.pop("no_load", False)
-    if loading and len(datasource) > 0:
-        database.load(datasource, record_type, **kwargs, version=version)
+    if loading and len(valid) > 0:
+        database.load(valid, record_type, **kwargs, version=version)
+    else:
+        print("Skipping data load")
 
     print(f"{record_type} complete")
 

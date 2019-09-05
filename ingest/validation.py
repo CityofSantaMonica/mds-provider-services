@@ -13,18 +13,13 @@ import mds
 import common
 
 
-_EXCEPTIONS = [
-    "is not a multiple of 1.0",
-    "Payload error in links.prev",
-    "Payload error in links.next",
-    "Payload error in links.first",
-    "Payload error in links.last",
-    ".associated_trips: None is not of type 'array'",
-    ".parking_verification_url: None is not of type 'string'",
-    "valid under each of {'required': ['associated_trip']}"
+_FILTER_EXCEPTIONS = [
+    "Item error"
 ]
 
-_ITEM_ERROR = re.compile("Item error in (\w+)\[(\d+)\]")
+_KEEP_EXCEPTIONS = [
+    "valid under each of {'required': ['associated_trip']}"
+]
 
 _UNEXPECTED_PROP = re.compile("\('(\w+)' was unexpected\)")
 
@@ -44,33 +39,28 @@ def _validator(record_type, ref):
 def _failure(record_type, error):
     """
     Determine if the error is a real schema validation error that should cause a validation failure.
-
-    Attempt to recover from certain types of errors and return additional context in a tuple.
     """
     # describing an error returns a list of messages, so join with a linesep
     description = os.linesep.join(error.describe())
 
-    # check for exceptions
-    if any([ex in description for ex in _EXCEPTIONS]):
-        return False, description
-
-    # check for and remove unexpected data, returning the removed data
+    # check for and remove unexpected data
     unexpected_prop = _UNEXPECTED_PROP.search(description)
     if unexpected_prop:
         prop = unexpected_prop.group(1)
-        data = { prop: error.instance[prop] }
         del error.instance[prop]
-        return False, data
+        return False, None
 
-    # check for invalid data item, return index
-    item_error = _ITEM_ERROR.search(description)
-    if item_error:
-        rt, index = item_error.group(1), int(item_error.group(2))
-        if rt == record_type:
-            return False, index
+    # check for exceptions for records that should be kept
+    if any([ex in description for ex in _KEEP_EXCEPTIONS]):
+        return False, None
+
+    # check for exceptions for records that should be removed
+    if any([ex in description for ex in _FILTER_EXCEPTIONS]):
+        idx = list(filter(lambda i: isinstance(i, int), error.path))[0]
+        return False, idx
 
     # no exceptions met => failure
-    return True, description
+    return True, None
 
 
 def _validate_provider(provider, **kwargs):
@@ -96,23 +86,7 @@ def _validate_provider(provider, **kwargs):
     kwargs["rate_limit"] = 0
     kwargs["client"] = mds.Client(provider, version=version, **config)
 
-    output = kwargs.pop("output", None)
-
-    results = []
-
-    # check each of the feeds
-    for record_type in [mds.STATUS_CHANGES, mds.TRIPS]:
-        datasource = common.get_data(record_type, **kwargs)
-
-        # output to files if needed
-        if output:
-            common.write_data(record_type, datasource, output)
-
-        # validate this record_type/version combo
-        result = _validate(record_type, datasource, version)
-        results.append(result)
-
-    return results
+    return _validate(**kwargs)
 
 
 def _validate_file(path, **kwargs):
@@ -120,46 +94,41 @@ def _validate_file(path, **kwargs):
     Validate data from the filesystem.
     """
     kwargs["source"] = path
+
+    return _validate(**kwargs)
+
+
+def _validate(**kwargs):
+    """
+    Check each feed type and keep valid results
+    """
     results = []
+    version = kwargs["version"]
 
     for record_type in [mds.STATUS_CHANGES, mds.TRIPS]:
         datasource = common.get_data(record_type, **kwargs)
 
         if len(datasource) > 0:
-            result = _validate(record_type, datasource)
-            results.append(result)
-        else:
-            print("No records")
+            versions = set([d["version"] for d in datasource])
+
+            if len(versions) > 1:
+                results.append((record_type, mds.Version(versions.pop()), datasource, [], [], []))
+                continue
+
+            version = mds.Version(version or versions.pop())
+            valid, errors, removed = validate(record_type, datasource, version)
+            results.append((record_type, version, datasource, valid, errors, removed))
 
     return results
 
 
-def _validate(record_type, datasource, version=None):
+def validate(record_type, sources, version, **kwargs):
     """
-    Validate a list of MDS payloads.
-    """
-    versions = set([d["version"] for d in datasource])
+    Partition sources into a tuple of (valid, errors, failures)
 
-    if len(versions) > 1:
-        return (record_type, mds.Version(versions.pop()), False)
-
-    version = mds.Version(version or versions.pop())
-
-    filtered = keep_valid(record_type, datasource, version)
-    result = len(datasource) == len(filtered)
-
-    if result:
-        for ds, fs in zip(datasource, filtered):
-            if len(ds["data"][record_type]) != len(fs["data"][record_type]):
-                result = False
-                break
-
-    return (record_type, version, result)
-
-
-def keep_valid(record_type, sources, version, **kwargs):
-    """
-    Keep only valid records from each source.
+        - valid: the sources with remaining valid data records
+        - errors: a list of mds.schemas.DataValidationError
+        - removed: the sources with invalid data records
     """
     if not all([isinstance(d, dict) and "data" in d for d in sources]):
         raise TypeError("Sources appears to be the wrong data type. Expected a list of payload dicts.")
@@ -169,43 +138,46 @@ def keep_valid(record_type, sources, version, **kwargs):
     if any([version != v for v in source_versions]):
         raise mds.versions.UnexpectedVersionError(source_versions[0], version)
 
-    seen = 0
-    passed = 0
     valid = []
+    errors = []
+    removed = []
     validator = kwargs.get("validator", _validator(record_type, version))
 
     for source in sources:
-        records = source.get("data", {}).get(record_type, [])
-        invalid = False
-        invalid_index = set()
-        seen += len(records)
+        records = list(source.get("data", {}).get(record_type, []))
+        invalid_records = []
+        invalid_source = False
+        invalid_idx = set()
 
+        # schema validation
         for error in validator.validate(source):
-            failure, ctx = _failure(record_type, error)
-            invalid = invalid or failure
+            errors.append(error)
+            failure, idx = _failure(record_type, error)
+            invalid_source = invalid_source or failure
 
-            # this was an invalid item error, mark it for removal
-            if not failure and isinstance(ctx, int):
-                invalid_index.add(ctx)
-            elif failure:
-                print(ctx)
+            # this was a problem with a single item, mark it for removal
+            if not failure and isinstance(idx, int):
+                invalid_idx.add(idx)
 
-        if not invalid:
-            # filter invalid items if needed
-            if len(invalid_index) > 0:
-                valid_records = [d for d in records if records.index(d) not in invalid_index]
+        # filter invalid items if the overall payload was OK
+        if not invalid_source:
+            if len(invalid_idx) > 0:
+                valid_records = [r for r in records if records.index(r) not in invalid_idx]
+                invalid_records = [r for r in records if records.index(r) in invalid_idx]
             else:
-                valid_records = list(records)
+                valid_records = records
 
-            passed += len(valid_records)
             if len(valid_records) > 0:
                 # create a copy to preserve the original payload
-                valid_payload =  { **source, "data": { record_type: valid_records } }
-                valid.append(valid_payload)
+                payload = { **source, "data": { record_type: valid_records } }
+                valid.append(payload)
 
-    print(f"Validated {seen} records ({passed} passed)")
+            if len(invalid_records) > 0:
+                # create a copy to preserve the original payload
+                payload = { **source, "data": { record_type: invalid_records } }
+                removed.append(payload)
 
-    return valid
+    return valid, errors, removed
 
 
 def setup_cli():
