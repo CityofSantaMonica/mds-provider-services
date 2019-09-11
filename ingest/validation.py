@@ -113,12 +113,18 @@ def _validate(**kwargs):
             versions = set([d["version"] for d in datasource])
 
             if len(versions) > 1:
-                results.append((record_type, mds.Version(versions.pop()), datasource, [], [], []))
+                expected, unexpected = mds.Version(versions.pop()), mds.Version(versions.pop())
+                error = mds.versions.UnexpectedVersionError(expected, unexpected)
+                results.append((record_type, expected, datasource, [], [error], []))
                 continue
 
             version = mds.Version(version or versions.pop())
-            valid, errors, removed = validate(record_type, datasource, version)
-            results.append((record_type, version, datasource, valid, errors, removed))
+
+            try:
+                valid, errors, removed = validate(record_type, datasource, version)
+                results.append((record_type, version, datasource, valid, errors, removed))
+            except mds.versions.UnexpectedVersionError as unexpected_version:
+                results.append((record_type, version, datasource, [], [unexpected_version], []))
 
     return results
 
@@ -249,16 +255,18 @@ if __name__ == "__main__":
 
         results = []
 
-        if pathlib.Path(source).exists():
-            results = _validate_file(source, **kwargs)
-        else:
-            results = _validate_provider(source, **kwargs)
+        try:
+            if pathlib.Path(source).exists():
+                results = _validate_file(source, **kwargs)
+            else:
+                results = _validate_provider(source, **kwargs)
+        except mds.versions.UnexpectedVersionError as unexpected_version:
+            print(unexpected_version)
 
         if len(results) == 0:
             continue
 
         print(f"Validation results for '{source}'")
-        print()
 
         for record_type, version, original, valid, errors, invalid in results:
             seen = sum([len(o["data"][record_type]) for o in original])
@@ -267,6 +275,7 @@ if __name__ == "__main__":
             result = len(original) == len(valid) and seen == passed
             icon = "\u2714" if result else "\U0001D5EB"
 
+            print()
             print(f"{icon} {record_type}, version {version}")
             print(f"  {seen} records, {passed} valid, {removed} invalid")
 
@@ -274,8 +283,11 @@ if __name__ == "__main__":
                 print(f"  Errors ({len(errors)} total)")
                 for error in errors:
                     print()
-                    for line in error.describe():
-                        print(f"    {line}")
+                    try:
+                        for line in error.describe():
+                            print(f"    {line}")
+                    except:
+                        print(error)
 
             if args.output:
                 print()
