@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS routes (
 );
 
 /* trigger function */
-CREATE OR REPLACE FUNCTION process_trip_route()
+CREATE OR REPLACE FUNCTION csm_process_trip_route()
     RETURNS TRIGGER
     LANGUAGE plpgsql
 AS $FUNCTION$
@@ -87,4 +87,4 @@ DROP TRIGGER IF EXISTS process_inserted_trip ON trips CASCADE;
 CREATE TRIGGER process_inserted_trip
      AFTER INSERT ON trips
      FOR EACH ROW
-     EXECUTE PROCEDURE process_trip_route();
+     EXECUTE PROCEDURE csm_process_trip_route();
