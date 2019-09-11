@@ -18,8 +18,7 @@ _FILTER_EXCEPTIONS = [
 
 _KEEP_EXCEPTIONS = [
     re.compile("Item error in status_changes\[\d+\]\s+\{(?!.*'associated_trip').+\} is not valid under any of the given schemas"),
-    re.compile("valid under each of \{'required': \['associated_trip'\]\}"),
-    re.compile("vehicle_id\svalue is not of type 'string'")
+    re.compile("valid under each of \{'required': \['associated_trip'\]\}")
 ]
 
 _UNEXPECTED_PROP = re.compile("\('(\w+)' was unexpected\)")
