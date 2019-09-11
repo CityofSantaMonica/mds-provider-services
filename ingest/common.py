@@ -85,15 +85,24 @@ def parse_time_range(**kwargs):
     decoder = mds.encoding.TimestampDecoder(version=kwargs["version"])
 
     if "start_time" in kwargs and "end_time" in kwargs and kwargs["start_time"] and kwargs["end_time"]:
-        start_time, end_time = decoder.decode(kwargs["start_time"]), decoder.decode(kwargs["end_time"])
+        try:
+            start_time, end_time = decoder.decode(int(kwargs["start_time"])), decoder.decode(int(kwargs["end_time"]))
+        except ValueError:
+            start_time, end_time = decoder.decode(kwargs["start_time"]), decoder.decode(kwargs["end_time"])
         return (start_time, end_time) if start_time <= end_time else (end_time, start_time)
 
     duration = datetime.timedelta(seconds=kwargs["duration"])
 
     if "start_time" in kwargs and kwargs["start_time"]:
-        start_time = decoder.decode(kwargs["start_time"])
+        try:
+            start_time = decoder.decode(int(kwargs["start_time"]))
+        except ValueError:
+            start_time = decoder.decode(kwargs["start_time"])
         return start_time, start_time + duration
 
     if "end_time" in kwargs and kwargs["end_time"]:
-        end_time = decoder.decode(kwargs["end_time"])
+        try:
+            end_time = decoder.decode(int(kwargs["end_time"]))
+        except ValueError:
+            end_time = decoder.decode(kwargs["end_time"])
         return end_time - duration, end_time
