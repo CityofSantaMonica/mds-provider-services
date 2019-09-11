@@ -68,6 +68,23 @@ def _validate_provider(provider, **kwargs):
     """
     Validate the feeds for a provider.
     """
+    # assert the time parameters -> if giving one, both must be given
+    if kwargs.get("start_time") and not kwargs.get("end_time") or
+       kwargs.get("end_time") and not kwargs.get("start_time"):
+       print("Both --start_time and --end_time are required for custom query ranges.")
+       exit(1)
+
+    if not (kwargs.get("start_time") or kwargs.get("end_time")):
+        # default to the hour beginning 25 hours before the current time
+        end = datetime.datetime.utcnow() - datetime.timedelta(days=1)
+        start = end - datetime.timedelta(seconds=3600)
+    else:
+        # parse from user input
+        start, end = common.parse_time_range(**kwargs)
+
+    kwargs["start_time"] = start
+    kwargs["end_time"] = end
+
     config = common.get_config(provider, kwargs.get("config"))
 
     # assert the version parameter
@@ -77,12 +94,6 @@ def _validate_provider(provider, **kwargs):
     else:
         kwargs["version"] = version
 
-    # request a reasonably recent span of time (the hour beginning 25 hours before the current time):
-    end = datetime.datetime.utcnow() - datetime.timedelta(days=1)
-    start = end - datetime.timedelta(seconds=3600)
-
-    kwargs["start_time"] = start
-    kwargs["end_time"] = end
     kwargs["no_paging"] = False
     kwargs["rate_limit"] = 0
     kwargs["client"] = mds.Client(provider, version=version, **config)
@@ -218,6 +229,13 @@ def setup_cli():
         help="Path to a provider configuration file to use."
     )
     parser.add_argument(
+        "--end_time",
+        type=str,
+        help="The end of the time query range for this request.\
+        Should be either numeric Unix time or ISO-8601 datetime format.\
+        Both --start_time and --end_time are required for custom query ranges."
+    )
+    parser.add_argument(
         "-H",
         "--header",
         dest="headers",
@@ -230,6 +248,13 @@ def setup_cli():
         "--output",
         type=str,
         help="Write results to json files in this directory."
+    )
+    parser.add_argument(
+        "--start_time",
+        type=str,
+        help="The beginning of the time query range for this request.\
+        Should be either numeric Unix time or ISO-8601 datetime format.\
+        Both --start_time and --end_time are required for custom query ranges."
     )
     parser.add_argument(
         "--version",

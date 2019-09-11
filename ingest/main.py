@@ -72,7 +72,7 @@ def setup_cli():
         "--end_time",
         type=str,
         help="The end of the time query range for this request.\
-        Should be either int Unix seconds or ISO-8601 datetime format.\
+        Should be either numeric Unix time or ISO-8601 datetime format.\
         At least one of end_time or start_time is required."
     )
     parser.add_argument(
