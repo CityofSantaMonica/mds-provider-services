@@ -15,11 +15,13 @@ import common
 
 
 _FILTER_EXCEPTIONS = [
-    "Item error"
+    re.compile("Item error")
 ]
 
 _KEEP_EXCEPTIONS = [
-    "valid under each of {'required': ['associated_trip']}"
+    re.compile("Item error in status_changes\[\d+\]\s+\{(?!.*'associated_trip').+\} is not valid under any of the given schemas"),
+    re.compile("valid under each of \{'required': \['associated_trip'\]\}"),
+    re.compile("vehicle_id\svalue is not of type 'string'")
 ]
 
 _UNEXPECTED_PROP = re.compile("\('(\w+)' was unexpected\)")
@@ -52,11 +54,11 @@ def _failure(record_type, error):
         return False, None
 
     # check for exceptions for records that should be kept
-    if any([ex in description for ex in _KEEP_EXCEPTIONS]):
+    if any([ex.search(description) for ex in _KEEP_EXCEPTIONS]):
         return False, None
 
     # check for exceptions for records that should be removed
-    if any([ex in description for ex in _FILTER_EXCEPTIONS]):
+    if any([ex.search(description) for ex in _FILTER_EXCEPTIONS]):
         idx = list(filter(lambda i: isinstance(i, int), error.path))[0]
         return False, idx
 
