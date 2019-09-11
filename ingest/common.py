@@ -2,6 +2,7 @@
 Helper functions for shared functionality.
 """
 
+import argparse
 import datetime
 import pathlib
 
@@ -106,3 +107,53 @@ def parse_time_range(**kwargs):
         except ValueError:
             end_time = decoder.decode(kwargs["end_time"])
         return end_time - duration, end_time
+
+
+def setup_cli(**kwargs):
+    """
+    Set up the common command line arguments.
+
+    Keyword arguments are passed to the ArugmentParser instance.
+
+    Returns the ArgumentParser.
+    """
+    parser = argparse.ArgumentParser(**kwargs)
+
+    parser.add_argument(
+        "--auth_type",
+        type=str,
+        default="Bearer",
+        help="The type used for the Authorization header for requests to the provider\
+        (e.g. Basic, Bearer)."
+    )
+
+    parser.add_argument(
+        "--config",
+        type=str,
+        help="Path to a provider configuration file to use."
+    )
+
+    parser.add_argument(
+        "-H",
+        "--header",
+        dest="headers",
+        action="append",
+        type=lambda kv: (kv.split(":", 1)[0].strip(), kv.split(":", 1)[1].strip()),
+        default=[],
+        help="One or more 'Header: value' combinations, sent with each request."
+    )
+
+    parser.add_argument(
+        "--output",
+        type=str,
+        help="Write results to json files in this directory."
+    )
+
+    parser.add_argument(
+        "--version",
+        type=lambda v: mds.Version(v),
+        default=default_version,
+        help=f"The release version at which to reference MDS, e.g. {default_version}"
+    )
+
+    return parser

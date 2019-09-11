@@ -8,9 +8,7 @@ Command-line interface implementing various MDS Provider data ingestion flows, i
 All fully customizable through extensive parameterization and configuration options.
 """
 
-import argparse
 import datetime
-import json
 import pathlib
 
 import mds
@@ -28,7 +26,7 @@ def setup_cli():
         - the argument parser
         - the parsed args
     """
-    parser = argparse.ArgumentParser(description="Ingest MDS data from various sources.")
+    parser = common.setup_cli(description="Ingest MDS data from various sources.")
 
     parser.add_argument(
         "provider",
@@ -36,13 +34,6 @@ def setup_cli():
         help="The name or identifier of the provider to query."
     )
 
-    parser.add_argument(
-        "--auth_type",
-        type=str,
-        default="Bearer",
-        help="The type used for the Authorization header for requests to the provider\
-        (e.g. Basic, Bearer)."
-    )
     parser.add_argument(
         "--columns",
         type=str,
@@ -52,22 +43,20 @@ def setup_cli():
         Used to drop duplicates in incoming data and detect conflicts with existing records.\
         NOTE: the program does not differentiate between --columns for --status_changes or --trips."
     )
-    parser.add_argument(
-        "--config",
-        type=str,
-        help="Path to a provider configuration file to use."
-    )
+
     parser.add_argument(
         "--device_id",
         type=str,
         help="The device_id to obtain results for. Only applies to --trips."
     )
+
     parser.add_argument(
         "--duration",
         type=int,
         help="Number of seconds; with one of --start_time or --end_time, defines a time query range.\
         With both, defines a backfill window size."
     )
+
     parser.add_argument(
         "--end_time",
         type=str,
@@ -75,52 +64,45 @@ def setup_cli():
         Should be either numeric Unix time or ISO-8601 datetime format.\
         At least one of end_time or start_time is required."
     )
-    parser.add_argument(
-        "-H",
-        "--header",
-        dest="headers",
-        action="append",
-        type=lambda kv: (kv.split(":", 1)[0].strip(), kv.split(":", 1)[1].strip()),
-        default=[],
-        help="One or more 'Header: value' combinations, sent with each request."
-    )
+
     parser.add_argument(
         "--no_load",
         action="store_true",
         help="Do not attempt to load the returned data."
     )
+
     parser.add_argument(
         "--no_paging",
         action="store_true",
         help="Return only the first page of data."
     )
+
     parser.add_argument(
         "--no_validate",
         action="store_true",
         help="Do not perform JSON Schema validation against the returned data."
     )
-    parser.add_argument(
-        "--output",
-        type=str,
-        help="Write results to json files in this directory."
-    )
+
     parser.add_argument(
         "--rate_limit",
         type=int,
         default=0,
         help="Number of seconds to pause between paging requests to a given endpoint."
     )
+
     parser.add_argument(
         "--registry",
         type=str,
         help="Local file path to a providers.csv registry file to use instead of downloading from GitHub."
     )
+
     parser.add_argument(
         "--source",
         type=str,
         nargs="+",
         help="One or more paths to (directories containing) MDS Provider JSON file(s)"
     )
+
     parser.add_argument(
         "--stage_first",
         default=True,
@@ -128,6 +110,7 @@ def setup_cli():
         True to stage in a temp table before UPSERT to the data table.\
         Int to increase randomness of the temp table name."
     )
+
     parser.add_argument(
         "--start_time",
         type=str,
@@ -135,18 +118,21 @@ def setup_cli():
         Should be either numeric Unix time or ISO-8601 datetime format.\
         At least one of end_time or start_time is required."
     )
+
     parser.add_argument(
         "--status_changes",
         action="store_true",
         help="Request status changes.\
         At least one of --status_changes or --trips is required."
     )
+
     parser.add_argument(
         "--trips",
         action="store_true",
         help="Request trips.\
         At least one of --status_changes or --trips is required."
     )
+
     parser.add_argument(
         "-U",
         "--on_conflict_update",
@@ -160,16 +146,11 @@ def setup_cli():
         Specify one or more 'column_name: EXCLUDED.value' to build an ON CONFLICT UPDATE statement.\
         NOTE: the program does not differentiate between --on_conflict_update for --status_changes or --trips."
     )
+
     parser.add_argument(
         "--vehicle_id",
         type=str,
         help="The vehicle_id to obtain results for. Only applies to --trips."
-    )
-    parser.add_argument(
-        "--version",
-        type=lambda v: mds.Version(v),
-        default=common.default_version,
-        help=f"The release version at which to reference MDS, e.g. {common.default_version}"
     )
 
     return parser, parser.parse_args()

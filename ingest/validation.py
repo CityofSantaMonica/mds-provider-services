@@ -2,9 +2,7 @@
 Validate MDS provider data against the published JSON schemas.
 """
 
-import argparse
 import datetime
-import json
 import os
 import pathlib
 import re
@@ -209,7 +207,7 @@ def setup_cli():
         - the argument parser
         - the parsed args
     """
-    parser = argparse.ArgumentParser(description="Validate MDS data feeds.")
+    parser = common.setup_cli(description="Validate MDS data feeds.")
 
     parser.add_argument(
         "source",
@@ -220,50 +218,19 @@ def setup_cli():
     )
 
     parser.add_argument(
-        "--auth_type",
-        type=str,
-        default="Bearer",
-        help="The type used for the Authorization header for requests to the provider\
-        (e.g. Basic, Bearer)."
-    )
-    parser.add_argument(
-        "--config",
-        type=str,
-        help="Path to a provider configuration file to use."
-    )
-    parser.add_argument(
         "--end_time",
         type=str,
         help="The end of the time query range for this request.\
         Should be either numeric Unix time or ISO-8601 datetime format.\
         Both --start_time and --end_time are required for custom query ranges."
     )
-    parser.add_argument(
-        "-H",
-        "--header",
-        dest="headers",
-        action="append",
-        type=lambda kv: (kv.split(":", 1)[0].strip(), kv.split(":", 1)[1].strip()),
-        default=[],
-        help="One or more 'Header: value' combinations, sent with each request."
-    )
-    parser.add_argument(
-        "--output",
-        type=str,
-        help="Write results to json files in this directory."
-    )
+
     parser.add_argument(
         "--start_time",
         type=str,
         help="The beginning of the time query range for this request.\
         Should be either numeric Unix time or ISO-8601 datetime format.\
         Both --start_time and --end_time are required for custom query ranges."
-    )
-    parser.add_argument(
-        "--version",
-        type=lambda v: mds.Version(v),
-        default=common.default_version,
-        help=f"The release version at which to reference MDS, e.g. {common.default_version}"
     )
 
     return parser, parser.parse_args()
