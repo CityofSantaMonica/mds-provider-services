@@ -69,8 +69,9 @@ def _validate_provider(provider, **kwargs):
     Validate the feeds for a provider.
     """
     # assert the time parameters -> if giving one, both must be given
-    if kwargs.get("start_time") and not kwargs.get("end_time") or
-       kwargs.get("end_time") and not kwargs.get("start_time"):
+    if any([
+        kwargs.get("start_time") and not kwargs.get("end_time"),
+        kwargs.get("end_time") and not kwargs.get("start_time")]):
        print("Both --start_time and --end_time are required for custom query ranges.")
        exit(1)
 
