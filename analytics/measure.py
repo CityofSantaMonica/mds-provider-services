@@ -1,8 +1,11 @@
-from decimal import Decimal
-from datetime import datetime
-from math import ceil
+"""
+Implement the availability calculation over time intervals.
+"""
+
+import math
+
 import pandas
-from sortedcontainers import SortedDict, SortedSet
+import sortedcontainers
 
 
 class CounterInterval(pandas.Interval):
@@ -78,7 +81,7 @@ class DeviceCounter():
         """
         Resets this counter with the initial interval.
         """
-        self.counts = SortedDict({ self.interval : 0 })
+        self.counts = sortedcontainers.SortedDict({ self.interval : 0 })
 
         # debug info
         self.events = 0
@@ -129,8 +132,8 @@ class DeviceCounter():
         """
         event_start = self._ts2int(event_start)
         event_end = None if (event_end is None or event_end is pandas.NaT) else self._ts2int(event_end)
-        to_remove = SortedSet()
-        to_add = SortedDict()
+        to_remove = sortedcontainers.SortedSet()
+        to_add = sortedcontainers.SortedDict()
 
         _counter = self.counter
         _splits = self.splits
@@ -245,7 +248,7 @@ class DeviceCounter():
         assert(len(self.counts) == 1)
         assert(self.counts.keys()[0] == self.interval)
 
-        scale = ceil(len(data) / 10)
+        scale = math.ceil(len(data) / 10)
 
         # using this counter's initial interval as a starting point,
         # subdivide based on the intersection of the interval from each event in the data

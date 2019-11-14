@@ -1,20 +1,18 @@
+"""
+Create time-bounded SQL queries for interval calculations like availability.
+"""
+
 import os
 
-import pandas
-
 import mds
+import pandas
 
 
 def parse_db_env():
     """
-    Gets the required database configuration out of the Environment.
+    Gets the database configuration out of the Environment. Fails if any values are missing.
 
-    Returns dict:
-        - user
-        - password
-        - db
-        - host
-        - port
+    Returns dict { user, password, db, host, port }
     """
     try:
         user, password = os.environ["MDS_USER"], os.environ["MDS_PASSWORD"]
@@ -38,8 +36,9 @@ def parse_db_env():
         port = os.environ["POSTGRES_HOST_PORT"]
     except:
         port = 5432
+        print("No POSTGRES_HOST_PORT environment variable set, defaulting to:", port)
 
-    return { "user": user, "password": password, "db": db, "host": host, "port": port }
+    return dict(user=user, password=password, db=db, host=host, port=port)
 
 
 ENGINE = mds.db.data_engine(**parse_db_env())
@@ -66,7 +65,7 @@ class TimeQuery():
 
         :engine: A `sqlalchemy.engine.Engine` representing a connection to the database.
 
-        :table: Name of the table or view containing the source records. This is required either at initialization or query time.
+        :source: Name of the table or view containing the source records. This is required either at initialization or query time.
 
         :provider_name: The name of a provider, as found in the providers registry.
 
@@ -85,7 +84,7 @@ class TimeQuery():
         self.end = end
         self.cutoff = kwargs.get("cutoff", -1)
         self.engine = kwargs.get("engine")
-        self.table = kwargs.get("table")
+        self.source = kwargs.get("source")
         self.provider_name = kwargs.get("provider_name")
         self.vehicle_types = kwargs.get("vehicle_types")
         self.order_by = kwargs.get("order_by", "")
@@ -106,13 +105,13 @@ class TimeQuery():
 
         :provider_name: The name of a provider, as found in the providers registry.
 
-        :table: Name of the table or view containing the source records. This is required either at initialization or query time.
+        :source: Name of the table or view containing the source records. This is required either at initialization or query time.
 
         :vehicle_types: vehicle_type or list of vehicle_type to further restrict the query.
         """
-        table = kwargs.get("table", self.table)
-        if not table:
-            raise ValueError("No source table specified.")
+        source = kwargs.get("source", self.source)
+        if not source:
+            raise ValueError("No source table or view specified.")
 
         cutoff = kwargs.get("cutoff", self.cutoff)
         start_time = "start_time_local" if self.local else "start_time"
@@ -169,7 +168,7 @@ class TimeQuery():
             SELECT
                 *
             FROM
-                {table}
+                {source}
             WHERE
                 {where}
             {order_by};
@@ -177,7 +176,7 @@ class TimeQuery():
 
     def get(self, **kwargs):
         """
-        Execute a query against this `Query`'s table.
+        Execute a query against this `Query`'s source.
 
         Supported optional keyword arguments:
 
@@ -205,10 +204,10 @@ class TimeQuery():
 
 class Availability(TimeQuery):
     """
-    Represents a query of the availability view for a particular provider.
+    Represents a query of the availability windows for a particular provider.
     """
 
-    DEFAULT_TABLE = "availability"
+    DEFAULT_TABLE = "availability_windows"
 
     def __init__(self, start, end, **kwargs):
         """
@@ -231,7 +230,7 @@ class Availability(TimeQuery):
         self.start_types = kwargs.get("start_types")
         self.end_types = kwargs.get("end_types")
 
-        kwargs["table"] = kwargs.get("table", self.DEFAULT_TABLE)
+        kwargs["source"] = kwargs.get("source", self.DEFAULT_TABLE)
 
         super().__init__(start, end, **kwargs)
 
@@ -295,7 +294,7 @@ class Trips(TimeQuery):
 
         See `TimeQuery` for additional optional keyword arguments.
         """
-        kwargs["table"] = kwargs.get("table", self.DEFAULT_TABLE)
+        kwargs["source"] = kwargs.get("source", self.DEFAULT_TABLE)
 
         super().__init__(start, end, **kwargs)
 

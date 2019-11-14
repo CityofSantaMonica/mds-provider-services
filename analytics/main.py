@@ -6,8 +6,6 @@ Command-line interface implementing various MDS Provider data analytics, includi
 
 import argparse
 import datetime
-import statistics
-import time
 
 import mds
 
@@ -27,8 +25,11 @@ def setup_cli():
 
     parser.add_argument(
         "--availability",
-        action="store_true",
-        help="Run the availability calculation."
+        const="csm_availability_windows",
+        default=False,
+        nargs="?",
+        help="Run the availability calculation.\
+        Optionally provide the view/table to query for availability windows."
     )
     parser.add_argument(
         "--cutoff",
@@ -74,42 +75,57 @@ def setup_cli():
         At least one of end or start is required."
     )
     parser.add_argument(
+        "--save",
+        const=True,
+        default=False,
+        nargs="?",
+        help="Save calculation results to the database.\
+        Optionally provide the destination table to write results."
+    )
+    parser.add_argument(
         "--version",
         type=lambda v: mds.Version(v),
-        default=mds.Version("0.2.1"),
+        default=mds.Version("0.3.2"),
         help="The release version at which to reference MDS, e.g. 0.3.1"
     )
 
     return parser, parser.parse_args()
 
 
-def parse_time_range(start=None, end=None, duration=None, version=None):
+def parse_time_range(**kwargs):
     """
-    Returns a valid range tuple (start, end) given an object with some mix of:
-         - start
-         - end
-         - duration
+    Returns a valid range tuple (start_time, end_time) given some mix of:
 
-    If both start and end are present, use those. Otherwise, compute from duration.
+    * start_time: datetime
+    * end_time: datetime
+    * duration: numeric seconds
+
+    If both start_time and end_time are given, use those. Otherwise, compute from duration.
     """
-    decoder = mds.TimestampDecoder(version=version)
+    decoder = mds.encoding.TimestampDecoder(version=kwargs["version"])
 
-    if start is None and end is None:
-        raise ValueError("At least one of start or end is required.")
+    if "start_time" in kwargs and "end_time" in kwargs and kwargs["start_time"] and kwargs["end_time"]:
+        try:
+            start_time, end_time = decoder.decode(int(kwargs["start_time"])), decoder.decode(int(kwargs["end_time"]))
+        except ValueError:
+            start_time, end_time = decoder.decode(kwargs["start_time"]), decoder.decode(kwargs["end_time"])
+        return (start_time, end_time) if start_time <= end_time else (end_time, start_time)
 
-    if (start is None or end is None) and duration is None:
-        raise ValueError("duration is required when only one of start or end is given.")
+    duration = datetime.timedelta(seconds=kwargs["duration"])
 
-    if start is not None and end is not None:
-        return decoder.decode(start), decoder.decode(end)
+    if "start_time" in kwargs and kwargs["start_time"]:
+        try:
+            start_time = decoder.decode(int(kwargs["start_time"]))
+        except ValueError:
+            start_time = decoder.decode(kwargs["start_time"])
+        return start_time, start_time + duration
 
-    if start is not None:
-        start = decoder.decode(start)
-        return start, start + datetime.timedelta(seconds=duration)
-
-    if end is not None:
-        end = decoder.decode(end)
-        return end - datetime.timedelta(seconds=duration), end
+    if "end_time" in kwargs and kwargs["end_time"]:
+        try:
+            end_time = decoder.decode(int(kwargs["end_time"]))
+        except ValueError:
+            end_time = decoder.decode(kwargs["end_time"])
+        return end_time - duration, end_time
 
 
 def log(debug, msg):
@@ -127,10 +143,12 @@ def availability(provider_name, vehicle_type, start, end, **kwargs):
     """
     Runs the availability calculation
     """
+    source = kwargs.get("availability")
     debug = kwargs.get("debug")
     step = datetime.timedelta(days=1)
 
     log(debug, f"Starting calculation for {provider_name}")
+    log(debug, f"Reading windows from {source}")
 
     while start < end:
         _end = start + step
@@ -139,7 +157,7 @@ def availability(provider_name, vehicle_type, start, end, **kwargs):
         q = query.Availability(
             start,
             _end,
-            table="csm_availability_windows",
+            source=source,
             provider_name=provider_name,
             vehicle_types=vehicle_type,
             **kwargs
@@ -156,11 +174,36 @@ def availability(provider_name, vehicle_type, start, end, **kwargs):
         start = _end
 
 
+def save_availability_count(dest, *args):
+    """
+    Insert an availability calculation result into the database.
+    """
+    dest = dest if isinstance(dest, str) else "availability_counts"
+    columns = ["provider_name", "vehicle_type", "start_time", "end_time", "avg_availability", "cutoff"]
+
+    # insert columns and values
+    inserts = ", ".join(columns)
+    values = ", ".join(map(lambda x: "%s", columns))
+
+    # SQL to insert and overwrite on conflict
+    sql = f"""
+    INSERT INTO "{dest}"
+    ({inserts})
+    VALUES
+    ({values})
+    ON CONFLICT ON CONSTRAINT unique_count DO UPDATE SET avg_availability = EXCLUDED.avg_availability
+    ;
+    """
+
+    with query.ENGINE.begin() as conn:
+        conn.execute(sql, args)
+
+
 if __name__ == "__main__":
     arg_parser, args = setup_cli()
 
     try:
-        start, end = parse_time_range(start=args.start, end=args.end, duration=args.duration, version=args.version)
+        start, end = parse_time_range(start_time=args.start, end_time=args.end, duration=args.duration, version=args.version)
     except ValueError as e:
         print(e)
         arg_parser.print_help()
@@ -175,7 +218,12 @@ if __name__ == "__main__":
     if args.availability:
         for provider_name, vehicle_type in queries.items():
             for _start, _end, count in availability(provider_name, vehicle_type, start, end, **kwargs):
-                print(f"{provider_name},{vehicle_type},{_start.strftime('%Y-%m-%d')},{_end.strftime('%Y-%m-%d')},{count.average()},{args.cutoff}")
+                avg = count.average()
+
+                if args.save:
+                    save_availability_count(args.save, provider_name, vehicle_type, _start, _end, avg, args.cutoff)
+
+                print(f"{provider_name},{vehicle_type},{_start.strftime('%Y-%m-%d')},{_end.strftime('%Y-%m-%d')},{avg},{args.cutoff}")
     else:
         arg_parser.print_help()
         exit(0)

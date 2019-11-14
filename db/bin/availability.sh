@@ -19,5 +19,6 @@ else
         --file availability/device_event_timeline.sql \
         --file availability/active_windows.sql \
         --file availability/inactive_windows.sql \
-        --file availability/csm_availability_windows.sql
+        --file availability/csm_availability_windows.sql \
+        --file availability/availability_counts.sql
 fi
