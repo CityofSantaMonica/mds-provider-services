@@ -186,7 +186,7 @@ if __name__ == "__main__":
     print(f"Valid boundary: {boundary.is_valid} ({time.time() - t1} s)")
 
     gen = mds.fake.ProviderDataGenerator(
-        boundary=boundary,
+        boundary=boundary_file,
         speed=speed,
         vehicle_types=args.vehicle_types,
         propulsion_types=args.propulsion_types
