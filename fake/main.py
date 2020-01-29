@@ -32,7 +32,9 @@ def setup_cli():
         - the argument parser
         - the parsed args
     """
-    schema = mds.Schema(mds.TRIPS)
+
+    # used to display CLI options for vehicle_types and propulsion_types
+    schema = mds.Schema(mds.TRIPS, 'master')
 
     parser = argparse.ArgumentParser()
 
@@ -87,7 +89,7 @@ def setup_cli():
         "--propulsion_types",
         type=str,
         nargs="+",
-        default=schema.propulsion_types,
+        default=[], # to be filled in below if not specified by user
         metavar="PROPULSION_TYPE",
         help="A list of propulsion_types to use for the generated data, e.g. '{}'".format(" ".join(schema.propulsion_types))
     )
@@ -120,7 +122,7 @@ def setup_cli():
         "--vehicle_types",
         type=str,
         nargs="+",
-        default=schema.vehicle_types,
+        default=[], # to be filled in below if not specified by user
         metavar="VEHICLE_TYPE",
         help="A list of vehicle_types to use for the generated data, e.g. '{}'".format(" ".join(schema.vehicle_types))
     )
@@ -131,7 +133,18 @@ def setup_cli():
         help="The release version at which to reference MDS, e.g. 0.3.1"
     )
 
-    return parser, parser.parse_args()
+
+    # use the specified MDS schema for filling in vehicle and propulsion types if not specified by user
+    args = parser.parse_args()
+    trips_schema = mds.Schema(mds.TRIPS, args.version)
+
+    if not args.vehicle_types:
+        args.vehicle_types = trips_schema.vehicle_types
+
+    if not args.propulsion_types:
+        args.propulsion_types = trips_schema.propulsion_types
+
+    return parser, args
 
 
 if __name__ == "__main__":
