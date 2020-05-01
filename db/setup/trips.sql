@@ -17,6 +17,7 @@ CREATE TABLE trips (
     parking_verification_url text null,
     standard_cost integer null,
     actual_cost integer null,
+    currency character(3) null default 'USD',
     publication_time timestamptz null,
     sequence_id bigserial not null,
     CONSTRAINT pk_trips PRIMARY KEY (provider_id, trip_id)

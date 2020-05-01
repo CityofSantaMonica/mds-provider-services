@@ -2,7 +2,9 @@ DROP TYPE IF EXISTS vehicle_types CASCADE;
 
 CREATE TYPE vehicle_types AS ENUM (
     'bicycle',
-    'scooter'
+    'scooter',
+    'moped',
+    'car'
 );
 
 DROP TYPE IF EXISTS propulsion_types CASCADE;
