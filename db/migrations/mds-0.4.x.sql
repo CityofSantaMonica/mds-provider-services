@@ -1,7 +1,7 @@
-BEGIN;
-
 ALTER TYPE vehicle_types ADD VALUE 'moped';
 ALTER TYPE vehicle_types ADD VALUE 'car';
+
+BEGIN;
 
 ALTER TABLE status_changes
     ADD COLUMN associated_ticket text null;
