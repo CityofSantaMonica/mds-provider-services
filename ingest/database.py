@@ -43,8 +43,7 @@ def prepare_conflict_update(columns, version=None):
     Create a tuple for generating an ON CONFLICT UPDATE statement.
     """
     version = version or common.default_version
-    if version.unsupported:
-        raise mds.UnsupportedVersionError(version)
+    version.raise_if_unsupported()
 
     if columns and len(columns) > 0:
         condition = f"({columns if isinstance(columns, str) else ', '.join(columns)})"

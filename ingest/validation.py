@@ -89,11 +89,9 @@ def _validate_provider(provider, **kwargs):
 
     # assert the version parameter
     version = mds.Version(config.pop("version", kwargs.get("version")))
-    if version.unsupported:
-        raise mds.UnsupportedVersionError(version)
-    else:
-        kwargs["version"] = version
+    version.raise_if_unsupported()
 
+    kwargs["version"] = version
     kwargs["no_paging"] = False
     kwargs["rate_limit"] = 0
     kwargs["client"] = mds.Client(provider, version=version, **config)

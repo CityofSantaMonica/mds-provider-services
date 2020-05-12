@@ -209,8 +209,7 @@ def ingest(record_type, **kwargs):
     4. optionally load valid records into the database
     """
     version = mds.Version(kwargs.pop("version", common.default_version))
-    if version.unsupported:
-        raise mds.UnsupportedVersionError(version)
+    version.raise_if_unsupported()
 
     datasource = common.get_data(record_type, **kwargs, version=version)
 
@@ -267,8 +266,7 @@ if __name__ == "__main__":
 
     # assert the version parameter
     args.version = mds.Version(config.pop("version", args.version))
-    if args.version.unsupported:
-        raise mds.UnsupportedVersionError(args.version)
+    args.version.raise_if_unsupported()
 
     print(f"Referencing MDS @ {args.version}")
 
