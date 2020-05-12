@@ -28,15 +28,19 @@ def _validator(record_type, ref):
     """
     Create a DataValidator instance.
     """
-    if record_type == mds.STATUS_CHANGES:
-        return mds.DataValidator.status_changes(ref=ref)
+    if record_type == mds.EVENTS:
+        return mds.DataValidator.events(ref)
+    elif record_type == mds.STATUS_CHANGES:
+        return mds.DataValidator.status_changes(ref)
     elif record_type == mds.TRIPS:
-        return mds.DataValidator.trips(ref=ref)
+        return mds.DataValidator.trips(ref)
+    elif record_type == mds.VEHICLES:
+        return mds.DataValidator.vehicles(ref)
     else:
         raise ValueError(f"Invalid record_type: {record_type}")
 
 
-def _failure(record_type, error):
+def _failure(error):
     """
     Determine if the error is a real schema validation error that should cause a validation failure.
     """
@@ -67,19 +71,16 @@ def _validate_provider(provider, **kwargs):
     """
     Validate the feeds for a provider.
     """
-    # assert the time parameters -> if giving one, both must be given
-    if any([
-        kwargs.get("start_time") and not kwargs.get("end_time"),
-        kwargs.get("end_time") and not kwargs.get("start_time")]):
-       print("Both --start_time and --end_time are required for custom query ranges.")
-       exit(1)
-
-    if not (kwargs.get("start_time") or kwargs.get("end_time")):
+    # compute a time query range; one or both sides may not be relevant for all feeds.
+    if "start_time" not in kwargs and "end_time" not in kwargs:
         # default to the hour beginning 25 hours before the current time
         end = datetime.datetime.utcnow() - datetime.timedelta(days=1)
         start = end - datetime.timedelta(seconds=3600)
+    elif "start_time" not in kwargs or "end_time" not in kwargs:
+        # one side of range provided, compute the other side for a total range of an hour
+        start, end = common.parse_time_range(duration=3600, **kwargs)
     else:
-        # parse from user input
+        # both sides of range provided
         start, end = common.parse_time_range(**kwargs)
 
     kwargs["start_time"] = start
@@ -115,7 +116,7 @@ def _validate(**kwargs):
     results = []
     version = kwargs["version"]
 
-    for record_type in [mds.STATUS_CHANGES, mds.TRIPS]:
+    for record_type in mds.SCHEMA_TYPES:
         datasource = common.get_data(record_type, **kwargs)
 
         if len(datasource) > 0:
@@ -158,9 +159,10 @@ def validate(record_type, sources, version, **kwargs):
     errors = []
     removed = []
     validator = kwargs.get("validator", _validator(record_type, version))
+    data_key = validator.data_key
 
     for source in sources:
-        records = list(source.get("data", {}).get(record_type, []))
+        records = list(source.get("data", {}).get(data_key, []))
         invalid_records = []
         invalid_source = False
         invalid_idx = set()
@@ -168,7 +170,7 @@ def validate(record_type, sources, version, **kwargs):
         # schema validation
         for error in validator.validate(source):
             errors.append(error)
-            failure, idx = _failure(record_type, error)
+            failure, idx = _failure(error)
             invalid_source = invalid_source or failure
 
             # this was a problem with a single item, mark it for removal
@@ -185,12 +187,12 @@ def validate(record_type, sources, version, **kwargs):
 
             if len(valid_records) > 0:
                 # create a copy to preserve the original payload
-                payload = { **source, "data": { record_type: valid_records } }
+                payload = { **source, "data": { data_key: valid_records } }
                 valid.append(payload)
 
             if len(invalid_records) > 0:
                 # create a copy to preserve the original payload
-                payload = { **source, "data": { record_type: invalid_records } }
+                payload = { **source, "data": { data_key: invalid_records } }
                 removed.append(payload)
 
     return valid, errors, removed
@@ -218,16 +220,14 @@ def setup_cli():
         "--end_time",
         type=str,
         help="The end of the time query range for this request.\
-        Should be either numeric Unix time or ISO-8601 datetime format.\
-        Both --start_time and --end_time are required for custom query ranges."
+        Should be either numeric Unix time or ISO-8601 datetime format."
     )
 
     parser.add_argument(
         "--start_time",
         type=str,
         help="The beginning of the time query range for this request.\
-        Should be either numeric Unix time or ISO-8601 datetime format.\
-        Both --start_time and --end_time are required for custom query ranges."
+        Should be either numeric Unix time or ISO-8601 datetime format."
     )
 
     return parser, parser.parse_args()
@@ -258,12 +258,13 @@ if __name__ == "__main__":
         if len(results) == 0:
             continue
 
-        print(f"Validation results for '{source}'")
+        print(f"Validation results for {source}")
 
         for record_type, version, original, valid, errors, invalid in results:
-            seen = sum([len(o["data"][record_type]) for o in original])
-            passed = sum([len(v["data"][record_type]) for v in valid])
-            removed = sum([len(i["data"][record_type]) for i in invalid])
+            data_key = mds.Schema(record_type).data_key
+            seen = sum([len(o["data"][data_key]) for o in original])
+            passed = sum([len(v["data"][data_key]) for v in valid])
+            removed = sum([len(i["data"][data_key]) for i in invalid])
             result = len(original) == len(valid) and seen == passed
             icon = "\u2714" if result else "\U0001D5EB"
 
