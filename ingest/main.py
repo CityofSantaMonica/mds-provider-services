@@ -3,7 +3,8 @@ Command-line interface implementing various MDS Provider data ingestion flows, i
 
   - request data from one or more Provider endpoints
   - validate data against any version of the schema
-  - save data to the filesystem and/or load it into Postgres
+  - save data to the filesystem
+  - load data into Postgres
 
 All fully customizable through extensive parameterization and configuration options.
 """
@@ -42,20 +43,22 @@ def setup_cli():
         default=[],
         help="One or more column names determining a unique record.\
         Used to drop duplicates in incoming data and detect conflicts with existing records.\
-        NOTE: the program does not differentiate between --columns for --status_changes or --trips."
+        Columns are reused if multiple record types are requested (e.g. --status_changes and --trips).\
+        Make a distinct request per record type to overcome this limitation."
     )
 
     parser.add_argument(
         "--device_id",
         type=str,
-        help="The device_id to obtain results for. Only applies to --trips."
+        help="The device_id to obtain results for. Only valid for --trips and version < 0.4.0."
     )
 
     parser.add_argument(
         "--duration",
         type=int,
         help="Number of seconds; with one of --start_time or --end_time, defines a time query range.\
-        With both, defines a backfill window size."
+        For version < 0.4.0, time query ranges are valid for --status_changes and --trips.\
+        For version >= 0.4.0, time query ranges are only valid for --events."
     )
 
     parser.add_argument(
@@ -63,19 +66,28 @@ def setup_cli():
         type=str,
         help="The end of the time query range for this request.\
         Should be either numeric Unix time or ISO-8601 datetime format.\
-        At least one of end_time or start_time is required."
+        For version < 0.4.0 at least one of end_time or start_time and duration is required.\
+        For version >= 0.4.0 end_time is required for all but --vehicles."
+    )
+
+    parser.add_argument(
+        "--events",
+        action="store_true",
+        help="Request events.\
+        At least one of --events, --status_changes, --trips, or --vehicles is required."
     )
 
     parser.add_argument(
         "--no_load",
         action="store_true",
-        help="Do not attempt to load the returned data."
+        help="Do not attempt to load the returned data into a database."
     )
 
     parser.add_argument(
         "--no_paging",
         action="store_true",
-        help="Return only the first page of data."
+        help="Return only the first page of data.\
+        For version >= 0.4.1, has no effect when requesting --status_changes or --trips."
     )
 
     parser.add_argument(
@@ -88,13 +100,14 @@ def setup_cli():
         "--rate_limit",
         type=int,
         default=0,
-        help="Number of seconds to pause between paging requests to a given endpoint."
+        help="Number of seconds to pause between paging requests to a given endpoint.\
+        For version >= 0.4.1, has no effect when requesting --status_changes or --trips."
     )
 
     parser.add_argument(
         "--registry",
         type=str,
-        help="Local file path to a providers.csv registry file to use instead of downloading from GitHub."
+        help="Path to a providers.csv registry file to use instead of downloading from GitHub."
     )
 
     parser.add_argument(
@@ -117,21 +130,22 @@ def setup_cli():
         type=str,
         help="The beginning of the time query range for this request.\
         Should be either numeric Unix time or ISO-8601 datetime format.\
-        At least one of end_time or start_time is required."
+        For version < 0.4.0, at least one of --end_time or --start_time and --duration is required.\
+        For version >= 0.4.0, only valid for --events."
     )
 
     parser.add_argument(
         "--status_changes",
         action="store_true",
         help="Request status changes.\
-        At least one of --status_changes or --trips is required."
+        At least one of --events, --status_changes, --trips, or --vehicles is required."
     )
 
     parser.add_argument(
         "--trips",
         action="store_true",
         help="Request trips.\
-        At least one of --status_changes or --trips is required."
+        At least one of --events, --status_changes, --trips, or --vehicles is required."
     )
 
     parser.add_argument(
@@ -145,13 +159,21 @@ def setup_cli():
         type=lambda kv: (kv.split(":", 1)[0].strip(), kv.split(":", 1)[1].strip()),
         help="Perform an UPDATE when incoming data conflicts with existing database records.\
         Specify one or more 'column_name: EXCLUDED.value' to build an ON CONFLICT UPDATE statement.\
-        NOTE: the program does not differentiate between --on_conflict_update for --status_changes or --trips."
+        Conflict actions are reused if multiple record types are requested (e.g. --status_changes and --trips).\
+        Make a distinct request per record type to overcome this limitation."
     )
 
     parser.add_argument(
         "--vehicle_id",
         type=str,
-        help="The vehicle_id to obtain results for. Only applies to --trips."
+        help="The vehicle_id to obtain results for. Only valid for --trips and version < 0.4.0."
+    )
+
+    parser.add_argument(
+        "--vehicles",
+        action="store_true",
+        help="Request vehicles.\
+        At least one of --events, --status_changes, --trips, or --vehicles is required."
     )
 
     return parser, parser.parse_args()
@@ -179,7 +201,14 @@ def backfill(record_type, **kwargs):
     * 2018-12-31T03:00:00 to 2018-12-31T09:00:00
     * 2018-12-31T00:00:00 to 2018-12-31T06:00:00
     * 2018-12-30T21:00:00 to 2018-12-31T03:00:00
+
+    Only valid for version < 0.4.0.
     """
+    version = kwargs.pop("version")
+    if version >= common.VERSION_040:
+        raise ValueError("Backfill is only supported for version < 0.4.0.")
+
+    kwargs["version"] = version
     kwargs["no_paging"] = False
     rate_limit = kwargs.get("rate_limit")
 
@@ -212,6 +241,7 @@ def ingest(record_type, **kwargs):
     version.raise_if_unsupported()
 
     datasource = common.get_data(record_type, **kwargs, version=version)
+    data_key = mds.Schema(record_type).data_key
 
     # validation and filtering
     if not kwargs.pop("no_validate", False):
@@ -219,9 +249,9 @@ def ingest(record_type, **kwargs):
 
         valid, errors, removed = validation.validate(record_type, datasource, version=version)
 
-        seen = sum([len(d["data"][record_type]) for d in datasource])
-        passed = sum([len(v["data"][record_type]) for v in valid])
-        failed = sum([len(r["data"][record_type]) for r in removed])
+        seen = sum([len(d["data"][data_key]) for d in datasource])
+        passed = sum([len(v["data"][data_key]) for v in valid])
+        failed = sum([len(r["data"][data_key]) for r in removed])
 
         print(f"{seen} records, {passed} passed, {failed} failed")
     else:
@@ -254,8 +284,9 @@ if __name__ == "__main__":
     arg_parser, args = setup_cli()
 
     # assert the data type parameters
-    if not (args.trips or args.status_changes):
-        print("One or both of the --status_changes or --trips flags is required. Run main.py --help for more information.")
+    if not any([args.events, args.status_changes, args.trips, args.vehicles]):
+        print("At least one of --events, --status_changes, --trips, or --vehicles is required.")
+        print("Run main.py --help for more information.")
         print("Exiting.")
         print()
         exit(1)
@@ -272,29 +303,49 @@ if __name__ == "__main__":
 
     # shortcut for loading from files
     if args.source:
+        if args.events:
+            ingest(mds.EVENTS, **vars(args))
         if args.status_changes:
             ingest(mds.STATUS_CHANGES, **vars(args))
         if args.trips:
             ingest(mds.TRIPS, **vars(args))
+        if args.vehicles:
+            ingest(mds.VEHICLES, **vars(args))
         # finished
         print(f"Finished ingestion ({common.count_seconds(now)}s)")
         exit(0)
 
     # assert the time range parameters
-    if args.start_time is None and args.end_time is None:
-        print("One or both of --end_time or --start_time is required. Run main.py --help for more information.")
-        print("Exiting.")
-        print()
-        exit(1)
+    if args.version < common.VERSION_040:
+        if args.start_time is None and args.end_time is None:
+            print("One or both of --end_time or --start_time is required.")
+            print("Run main.py --help for more information.")
+            print("Exiting.")
+            print()
+            exit(1)
+        elif (args.start_time is None or args.end_time is None) and args.duration is None:
+            print("With only one of --end_time or --start_time, --duration is required.")
+            print("Run main.py --help for more information.")
+            print("Exiting.")
+            print()
+            exit(1)
+    else:
+        if args.events and (args.start_time is None or args.end_time is None) and args.duration is None:
+            print("Requesting events requires a time query range.")
+            print("With only one of --end_time or --start_time, --duration is required.")
+            print("Run main.py --help for more information.")
+            print("Exiting.")
+            print()
+            exit(1)
+        elif any([args.status_changes, args.trips]) and args.end_time is None:
+            print("Requesting status_changes or trips requires an --end_time.")
+            print("Run main.py --help for more information.")
+            print("Exiting.")
+            print()
+            exit(1)
 
-    if (args.start_time is None or args.end_time is None) and args.duration is None:
-        print("With only one of --end_time or --start_time, --duration is required. Run main.py --help for more information.")
-        print("Exiting.")
-        print()
-        exit(1)
-
-    # backfill mode if all 3 time parameters given
-    backfill_mode = all([args.start_time, args.end_time, args.duration])
+    # backfill mode for version < 0.4.0 if all 3 time parameters given
+    backfill_mode = all([args.version < common.VERSION_040, args.start_time, args.end_time, args.duration])
 
     # parse into a valid range
     args.start_time, args.end_time = common.parse_time_range(**vars(args))
@@ -320,9 +371,13 @@ if __name__ == "__main__":
         if args.trips:
             backfill(mds.TRIPS, **kwargs)
     else:
+        if args.events:
+            ingest(mds.EVENTS, **kwargs)
         if args.status_changes:
             ingest(mds.STATUS_CHANGES, **kwargs)
         if args.trips:
             ingest(mds.TRIPS, **kwargs)
+        if args.vehicles:
+            ingest(mds.VEHICLES, **kwargs)
 
     print(f"Finished ingestion ({common.count_seconds(now)}s)")

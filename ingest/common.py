@@ -9,7 +9,8 @@ import pathlib
 import mds
 
 
-default_version = mds.Version("0.3.2")
+DEFAULT_VERSION = mds.Version("0.3.2")
+VERSION_040 = mds.Version("0.4.0")
 
 
 def count_seconds(ts):
@@ -35,6 +36,7 @@ def get_data(record_type, **kwargs):
     """
     Get provider data as in-memory objects.
     """
+    # shortcut reading from file source(s)
     if kwargs.get("source"):
         source = kwargs.get("source")
         print(f"Reading {record_type} from {source}")
@@ -43,32 +45,44 @@ def get_data(record_type, **kwargs):
 
     # required for API calls
     client = kwargs.pop("client")
-    start_time = kwargs.pop("start_time")
-    end_time = kwargs.pop("end_time")
+
+    # dependent on version and record_type
+    start_time = kwargs.get("start_time")
+    end_time = kwargs.get("end_time")
 
     paging = not kwargs.get("no_paging")
     rate_limit = kwargs.get("rate_limit")
-    version = kwargs.get("version")
+    version = kwargs.get("version", DEFAULT_VERSION)
 
     # package up for API requests
     api_kwargs = dict(paging=paging, rate_limit=rate_limit)
 
     print(f"Requesting {record_type} from {client.provider.provider_name}")
-    print(f"Time range: {start_time.isoformat()} to {end_time.isoformat()}")
+    if start_time and end_time:
+        print(f"For time range: {start_time.isoformat()} to {end_time.isoformat()}")
+    elif end_time:
+        print(f"For time: {end_time.isoformat()}")
 
-    if record_type == mds.STATUS_CHANGES:
-        api_kwargs["start_time"] = start_time
-        api_kwargs["end_time"] = end_time
-    elif record_type == mds.TRIPS:
-        api_kwargs["device_id"] = kwargs.get("device_id")
-        api_kwargs["vehicle_id"] = kwargs.get("vehicle_id")
-
-        if version < mds.Version("0.3.0"):
+    if version < VERSION_040:
+        if record_type == mds.STATUS_CHANGES:
             api_kwargs["start_time"] = start_time
             api_kwargs["end_time"] = end_time
-        else:
+        elif record_type == mds.TRIPS:
             api_kwargs["min_end_time"] = start_time
             api_kwargs["max_end_time"] = end_time
+            api_kwargs["device_id"] = kwargs.get("device_id")
+            api_kwargs["vehicle_id"] = kwargs.get("vehicle_id")
+    else:
+        if record_type == mds.EVENTS:
+            api_kwargs["start_time"] = start_time
+            api_kwargs["end_time"] = end_time
+        elif record_type == mds.STATUS_CHANGES:
+            api_kwargs["event_time"] = end_time
+        elif record_type == mds.TRIPS:
+            api_kwargs["end_time"] = end_time
+        elif record_type == mds.VEHICLES:
+            # currently no special query params for vehicles
+            pass
 
     return client.get(record_type, **api_kwargs)
 
@@ -81,7 +95,8 @@ def parse_time_range(**kwargs):
     * end_time: datetime
     * duration: numeric seconds
 
-    If both start_time and end_time are given, use those. Otherwise, compute from duration.
+    If both start_time and end_time are given, use those.
+    Otherwise, compute the range from either side with duration. Duration is assumed 0 if not given.
     """
     decoder = mds.encoding.TimestampDecoder(version=kwargs["version"])
 
@@ -92,7 +107,7 @@ def parse_time_range(**kwargs):
             start_time, end_time = decoder.decode(kwargs["start_time"]), decoder.decode(kwargs["end_time"])
         return (start_time, end_time) if start_time <= end_time else (end_time, start_time)
 
-    duration = datetime.timedelta(seconds=kwargs["duration"])
+    duration = datetime.timedelta(seconds=kwargs.get("duration", 0))
 
     if "start_time" in kwargs and kwargs["start_time"]:
         try:
@@ -113,7 +128,7 @@ def setup_cli(**kwargs):
     """
     Set up the common command line arguments.
 
-    Keyword arguments are passed to the ArugmentParser instance.
+    Keyword arguments are passed to the ArgumentParser instance.
 
     Returns the ArgumentParser.
     """
@@ -152,8 +167,8 @@ def setup_cli(**kwargs):
     parser.add_argument(
         "--version",
         type=lambda v: mds.Version(v),
-        default=default_version,
-        help=f"The release version at which to reference MDS, e.g. {default_version}"
+        default=DEFAULT_VERSION,
+        help=f"The release version at which to reference MDS, e.g. {DEFAULT_VERSION}"
     )
 
     return parser
