@@ -24,7 +24,8 @@ CREATE TABLE vehicles (
     battery_pct double precision null,
     last_updated timestamptz not null,
     ttl integer not null,
-    sequence_id bigserial not null
+    sequence_id bigserial not null,
+    CONSTRAINT unique_vehicle_event UNIQUE (provider_id, device_id, last_updated)
 );
 
 
