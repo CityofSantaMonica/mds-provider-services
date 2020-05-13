@@ -12,8 +12,10 @@ import common
 # default columns defining a unique record
 COLUMNS = {
     mds.STATUS_CHANGES: ["provider_id", "device_id", "event_time", "event_type", "event_type_reason"],
-    mds.TRIPS: ["provider_id", "trip_id"]
+    mds.TRIPS: ["provider_id", "trip_id"],
+    mds.VEHICLES: ["provider_id", "device_id", "last_updated"]
 }
+COLUMNS[mds.EVENTS] = COLUMNS[mds.STATUS_CHANGES]
 
 # default ON CONFLICT UPDATE actions
 UPDATE_ACTIONS = {
@@ -22,6 +24,7 @@ UPDATE_ACTIONS = {
         "event_type_reason": "cast(EXCLUDED.event_type_reason as event_type_reasons)",
         "event_location": "cast(EXCLUDED.event_location as jsonb)",
         "battery_pct": "EXCLUDED.battery_pct",
+        "associated_trip": "cast(EXCLUDED.associated_trip as uuid)",
         "sequence_id": "EXCLUDED.sequence_id"
     },
     mds.TRIPS: {
@@ -34,47 +37,31 @@ UPDATE_ACTIONS = {
         "parking_verification_url": "EXCLUDED.parking_verification_url",
         "standard_cost": "EXCLUDED.standard_cost",
         "actual_cost": "EXCLUDED.actual_cost",
+        "currency": "EXCLUDED.currency",
+        "sequence_id": "EXCLUDED.sequence_id"
+    },
+    mds.VEHICLES: {
+        "last_event_time": "EXCLUDED.last_event_time",
+        "last_event_type": "cast(EXCLUDED.last_event_type as event_types)",
+        "last_event_type_reason": "cast(EXCLUDED.last_event_type_reason as event_type_reasons)",
+        "last_event_location": "cast(EXCLUDED.last_event_location as jsonb)",
+        "current_location": "cast(EXCLUDED.current_location as jsonb)",
+        "battery_pct": "EXCLUDED.battery_pct",
+        "ttl": "EXCLUDED.ttl",
         "sequence_id": "EXCLUDED.sequence_id"
     }
 }
+UPDATE_ACTIONS[mds.EVENTS] = UPDATE_ACTIONS[mds.STATUS_CHANGES]
 
-def prepare_conflict_update(columns, version=None):
-    """
-    Create a tuple for generating an ON CONFLICT UPDATE statement.
-    """
-    version = version or common.default_version
-    version.raise_if_unsupported()
 
+def conflict_update_condition(columns):
+    """
+    Create the (condition) portion of the "ON CONFLICT (condition) DO UPDATE (actions)" statement.
+    """
     if columns and len(columns) > 0:
-        condition = f"({columns if isinstance(columns, str) else ', '.join(columns)})"
+        return f"({columns if isinstance(columns, str) else ', '.join(columns)})"
     else:
         raise TypeError("Columns are required.")
-
-    return condition, version
-
-
-def status_changes_conflict_update(columns, actions, version=None):
-    """
-    Create a tuple for generating the status_changes ON CONFLICT UPDATE statement.
-    """
-    condition, version = prepare_conflict_update(columns, version)
-
-    if version < mds.Version("0.3.0"):
-        if "associated_trips" not in actions:
-            actions["associated_trips"] = "cast(EXCLUDED.associated_trips as uuid[])"
-    else:
-        if "associated_trip" not in actions:
-            actions["associated_trip"] = "cast(EXCLUDED.associated_trip as uuid)"
-
-    return condition, actions
-
-
-def trips_conflict_update(columns, actions, version=None):
-    """
-    Create a tuple for generating the trips ON CONFLICT UPDATE statement.
-    """
-    condition, _ = prepare_conflict_update(columns, version)
-    return condition, actions
 
 
 def env():
@@ -129,8 +116,6 @@ def load(datasource, record_type, **kwargs):
         # convert action tuples to dict, filtering any flag-only options
         actions = dict(filter(lambda x: x is not True, actions))
 
-    conflict_update = len(actions) > 0
-
     version = mds.Version(kwargs.pop("version", common.default_version))
     stage_first = int(kwargs.pop("stage_first", True))
 
@@ -138,9 +123,14 @@ def load(datasource, record_type, **kwargs):
     db = kwargs.get("db", mds.Database(**db_config))
 
     load_config = dict(table=record_type, drop_duplicates=columns)
-    if record_type == mds.STATUS_CHANGES:
-        load_config["on_conflict_update"] = status_changes_conflict_update(columns, actions, version) if conflict_update else None
+    if len(actions) > 0:
+        load_config["on_conflict_update"] = conflict_update_condition(columns), actions
+
+    if record_type == mds.EVENTS:
+        db.load_events(datasource, **load_config)
+    elif record_type == mds.STATUS_CHANGES:
         db.load_status_changes(datasource, **load_config)
     elif record_type == mds.TRIPS:
-        load_config["on_conflict_update"] = trips_conflict_update(columns, actions, version) if conflict_update else None
         db.load_trips(datasource, **load_config)
+    elif record_type == mds.VEHICLES:
+        db.load_vehicles(datasource, **load_config)
