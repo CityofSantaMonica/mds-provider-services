@@ -53,15 +53,15 @@ Modify this file with your own settings, but the defaults should be good enough 
 
 ### 2. Initialize the database
 
-Build and start the necessary containers to load and explore a Postgres database.
+If running locally, first start the [`server`](#local-postgres-server) service.
+
+Run the following script to configure a Postgres database from scratch:
 
 ```bash
 bin/initdb.sh
 ```
 
-Now you can browse to `http://localhost:PGADMIN_HOST_PORT` and login with the `PGADMIN_DEFAULT` credentials.
-
-Attach to the server `POSTGRES_HOSTNAME`, database `MDS_DB`, with the `MDS` credentials.
+Now you can use the [`client`](#pgadmin-client) service to browse the configured Postgres database.
 
 ### 3. Build the base image for service jobs
 
@@ -104,12 +104,14 @@ Optional `[ARGS]` will be passed directly to the `jupyter notebook` startup comm
 Run a local Postgres database server:
 
 ```bash
-docker-compose up server
+docker-compose up [-d] server
 ```
+
+The optional `-d` flag runs the container in detached mode, and container output will not be printed to your terminal.
 
 ### Configuration
 
-This container uses the following environment variables to create the Postgres server:
+This container uses the following environment variables to create the Postgres server (with defaults shown):
 
 ```bash
 POSTGRES_HOSTNAME=server
@@ -118,17 +120,21 @@ POSTGRES_USER=postgres
 POSTGRES_PASSWORD=postgres_password
 ```
 
-## pgadmin client
+## pgAdmin client
 
 A web client interface into local and remote Postgres databases:
 
 ```bash
-docker-compose up client
+docker-compose up [-d] client
 ```
+
+The optional `-d` flag runs the container in detached mode, and container output will not be printed to your terminal.
+
+Learn more about [pgAdmin][pgadmin-docs] in the documentation.
 
 ### Configuration
 
-This container uses the following environment variables to configure pgAdmin4:
+This container uses the following environment variables to configure pgAdmin (with defaults shown):
 
 ```bash
 PGADMIN_DEFAULT_EMAIL=user@domain.com
@@ -142,8 +148,18 @@ Once running, connect to the container from a web browser at: `http://localhost:
 
 Use the `$PGADMIN_DEFAULT_EMAIL` and `$PGADMIN_DEFAULT_PASSWORD` to log in.
 
+To connect to the Postgres database running in the local [`server`](#local-postgres-server) container,
+add a new server connection using the values of the following environment variables (with defaults shown):
+
+```bash
+MDS_DB=mds_provider
+MDS_USER=mds_provider
+MDS_PASSWORD=mds_provider_password
+```
+
 [compose]: https://docs.docker.com/compose/overview/
 [docker]: https://www.docker.com/
 [pgadmin]: https://www.pgadmin.org/
+[pgadmin-docs]: https://www.pgadmin.org/docs/pgadmin4/latest/index.html
 [postgres]: https://www.postgresql.org/
-[provider]: https://github.com/CityOfLosAngeles/mobility-data-specification/tree/master/provider
+[provider]: https://github.com/openmobilityfoundation/mobility-data-specification/tree/master/provider
