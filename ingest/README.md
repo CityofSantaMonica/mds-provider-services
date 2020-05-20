@@ -24,8 +24,6 @@ docker-compose run [--rm] ingest [OPTIONS]
 
 ## [OPTIONS]
 
-**Note:** you must provide a range of time to query using some combination of `--start_time`, `--end_time`, and `--duration`.
-
 For a complete list of options, see the help/usage output:
 
 ```bash
