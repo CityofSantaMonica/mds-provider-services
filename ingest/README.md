@@ -31,14 +31,15 @@ For a complete list of options, see the help/usage output:
 ```bash
 $ docker-compose run ingest --help
 
-usage: main.py [-h] [--auth_type AUTH_TYPE] [--columns COLUMNS [COLUMNS ...]]
-               [--config CONFIG] [--device_id DEVICE_ID] [--duration DURATION]
-               [--end_time END_TIME] [-H HEADERS] [--no_load] [--no_paging]
-               [--no_validate] [--output OUTPUT] [--rate_limit RATE_LIMIT]
-               [--registry REGISTRY] [--source SOURCE [SOURCE ...]]
-               [--stage_first STAGE_FIRST] [--start_time START_TIME]
-               [--status_changes] [--trips] [-U [UPDATE_ACTIONS]]
-               [--vehicle_id VEHICLE_ID] [--version VERSION]
+usage: main.py [-h] [--auth_type AUTH_TYPE] [--config CONFIG] [-H HEADERS]
+               [--output OUTPUT] [--version VERSION]
+               [--columns COLUMNS [COLUMNS ...]] [--device_id DEVICE_ID]
+               [--duration DURATION] [--end_time END_TIME] [--events]
+               [--no_load] [--no_paging] [--no_validate]
+               [--rate_limit RATE_LIMIT] [--registry REGISTRY]
+               [--source SOURCE [SOURCE ...]] [--stage_first STAGE_FIRST]
+               [--start_time START_TIME] [--status_changes] [--trips]
+               [-U [UPDATE_ACTIONS]] [--vehicle_id VEHICLE_ID] [--vehicles]
                provider
 
 Ingest MDS data from various sources.
@@ -51,36 +52,49 @@ optional arguments:
   --auth_type AUTH_TYPE
                         The type used for the Authorization header for
                         requests to the provider (e.g. Basic, Bearer).
-  --columns COLUMNS [COLUMNS ...]
-                        One or more column names determining a unique record.
-                        Used to drop duplicates in incoming data and detect
-                        conflicts with existing records. NOTE: the program
-                        does not differentiate between --columns for
-                        --status_changes or --trips.
   --config CONFIG       Path to a provider configuration file to use.
-  --device_id DEVICE_ID
-                        The device_id to obtain results for. Only applies to
-                        --trips.
-  --duration DURATION   Number of seconds; with one of --start_time or
-                        --end_time, defines a time query range. With both,
-                        defines a backfill window size.
-  --end_time END_TIME   The end of the time query range for this request.
-                        Should be either int Unix seconds or ISO-8601 datetime
-                        format. At least one of end_time or start_time is
-                        required.
   -H HEADERS, --header HEADERS
                         One or more 'Header: value' combinations, sent with
                         each request.
-  --no_load             Do not attempt to load the returned data.
-  --no_paging           Return only the first page of data.
+  --output OUTPUT       Write results to json files in this directory.
+  --version VERSION     The release version at which to reference MDS, e.g.
+                        0.3.2
+  --columns COLUMNS [COLUMNS ...]
+                        One or more column names determining a unique record.
+                        Used to drop duplicates in incoming data and detect
+                        conflicts with existing records. Columns are reused if
+                        multiple record types are requested (e.g.
+                        --status_changes and --trips). Make a distinct request
+                        per record type to overcome this limitation.
+  --device_id DEVICE_ID
+                        The device_id to obtain results for. Only valid for
+                        --trips and version < 0.4.0.
+  --duration DURATION   Number of seconds; with one of --start_time or
+                        --end_time, defines a time query range. For version <
+                        0.4.0, time query ranges are valid for
+                        --status_changes and --trips. For version >= 0.4.0,
+                        time query ranges are only valid for --events.
+  --end_time END_TIME   The end of the time query range for this request.
+                        Should be either numeric Unix time or ISO-8601
+                        datetime format. For version < 0.4.0 at least one of
+                        end_time or start_time and duration is required. For
+                        version >= 0.4.0 end_time is required for all but
+                        --vehicles.
+  --events              Request events. At least one of --events,
+                        --status_changes, --trips, or --vehicles is required.
+  --no_load             Do not attempt to load the returned data into a
+                        database.
+  --no_paging           Return only the first page of data. For version >=
+                        0.4.1, has no effect when requesting --status_changes
+                        or --trips.
   --no_validate         Do not perform JSON Schema validation against the
                         returned data.
-  --output OUTPUT       Write results to json files in this directory.
   --rate_limit RATE_LIMIT
                         Number of seconds to pause between paging requests to
-                        a given endpoint.
-  --registry REGISTRY   Local file path to a providers.csv registry file to
-                        use instead of downloading from GitHub.
+                        a given endpoint. For version >= 0.4.1, has no effect
+                        when requesting --status_changes or --trips.
+  --registry REGISTRY   Path to a providers.csv registry file to use instead
+                        of downloading from GitHub.
   --source SOURCE [SOURCE ...]
                         One or more paths to (directories containing) MDS
                         Provider JSON file(s)
@@ -92,24 +106,27 @@ optional arguments:
   --start_time START_TIME
                         The beginning of the time query range for this
                         request. Should be either numeric Unix time or
-                        ISO-8601 datetime format. At least one of end_time or
-                        start_time is required.
-  --status_changes      Request status changes. At least one of
-                        --status_changes or --trips is required.
-  --trips               Request trips. At least one of --status_changes or
-                        --trips is required.
+                        ISO-8601 datetime format. For version < 0.4.0, at
+                        least one of --end_time or --start_time and --duration
+                        is required. For version >= 0.4.0, only valid for
+                        --events.
+  --status_changes      Request status changes. At least one of --events,
+                        --status_changes, --trips, or --vehicles is required.
+  --trips               Request trips. At least one of --events,
+                        --status_changes, --trips, or --vehicles is required.
   -U [UPDATE_ACTIONS], --on_conflict_update [UPDATE_ACTIONS]
                         Perform an UPDATE when incoming data conflicts with
                         existing database records. Specify one or more
                         'column_name: EXCLUDED.value' to build an ON CONFLICT
-                        UPDATE statement. NOTE: the program does not
-                        differentiate between --on_conflict_update for
-                        --status_changes or --trips.
+                        UPDATE statement. Conflict actions are reused if
+                        multiple record types are requested (e.g.
+                        --status_changes and --trips). Make a distinct request
+                        per record type to overcome this limitation.
   --vehicle_id VEHICLE_ID
-                        The vehicle_id to obtain results for. Only applies to
-                        --trips.
-  --version VERSION     The release version at which to reference MDS, e.g.
-                        0.3.1
+                        The vehicle_id to obtain results for. Only valid for
+                        --trips and version < 0.4.0.
+  --vehicles            Request vehicles. At least one of --events,
+                        --status_changes, --trips, or --vehicles is required.
 ```
 
 ## Backfilling
