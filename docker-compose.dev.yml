@@ -30,6 +30,8 @@ services:
       - PGADMIN_DEFAULT_PASSWORD
     ports:
       - "${PGADMIN_HOST_PORT}:80"
+    volumes:
+      - ./data/pgadmin:/var/lib/pgadmin
 
   fake:
     image: mds_provider_python
