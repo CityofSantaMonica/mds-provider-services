@@ -37,7 +37,6 @@ UPDATE_ACTIONS = {
         "parking_verification_url": "EXCLUDED.parking_verification_url",
         "standard_cost": "EXCLUDED.standard_cost",
         "actual_cost": "EXCLUDED.actual_cost",
-        "currency": "EXCLUDED.currency",
         "sequence_id": "EXCLUDED.sequence_id"
     },
     mds.VEHICLES: {
@@ -62,6 +61,22 @@ def conflict_update_condition(columns):
         return f"({columns if isinstance(columns, str) else ', '.join(columns)})"
     else:
         raise TypeError("Columns are required.")
+
+
+def default_conflict_update_actions(record_type, version):
+    """
+    Get the default update actions appropriate for the record_type and version.
+    """
+    actions = UPDATE_ACTIONS[record_type]
+
+    # record and version-specific additions
+    if version >= mds.Version._040_():
+        if record_type in [mds.EVENTS, mds.STATUS_CHANGES]:
+            actions["associated_ticket"] = "EXCLUDED.associated_ticket"
+        elif record_type == mds.TRIPS:
+            actions["currency"] = "EXCLUDED.currency"
+
+    return actions
 
 
 def env():
@@ -103,6 +118,14 @@ def load(datasource, record_type, **kwargs):
     """
     print(f"Loading {record_type}")
 
+    version = mds.Version(kwargs.pop("version", common.DEFAULT_VERSION))
+    version.raise_if_unsupported()
+
+    if version < mds.Version._040_() and record_type not in [mds.STATUS_CHANGES, mds.TRIPS]:
+        raise ValueError(f"MDS Version {version} only supports {STATUS_CHANGES} and {TRIPS}.")
+    elif version < mds.Version._041_() and record_type == mds.VEHICLES:
+        raise ValueError(f"MDS Version {version} does not support the {VEHICLES} endpoint.")
+
     columns = kwargs.pop("columns", [])
     if len(columns) == 0:
         columns = COLUMNS[record_type]
@@ -111,12 +134,11 @@ def load(datasource, record_type, **kwargs):
 
     if len(actions) == 1 and actions[0] is True:
         # flag-only option, use defaults
-        actions = UPDATE_ACTIONS[record_type]
+        actions = default_conflict_update_actions(record_type, version)
     elif len(actions) > 1:
         # convert action tuples to dict, filtering any flag-only options
         actions = dict(filter(lambda x: x is not True, actions))
 
-    version = mds.Version(kwargs.pop("version", common.DEFAULT_VERSION))
     stage_first = int(kwargs.pop("stage_first", True))
 
     db_config = dict(stage_first=stage_first, version=version, **env())
