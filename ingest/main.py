@@ -237,7 +237,7 @@ def ingest(record_type, **kwargs):
     3. optionally write data to output files
     4. optionally load valid records into the database
     """
-    version = mds.Version(kwargs.pop("version", common.default_version))
+    version = mds.Version(kwargs.pop("version", common.DEFAULT_VERSION))
     version.raise_if_unsupported()
 
     datasource = common.get_data(record_type, **kwargs, version=version)

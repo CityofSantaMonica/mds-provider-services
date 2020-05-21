@@ -116,7 +116,7 @@ def load(datasource, record_type, **kwargs):
         # convert action tuples to dict, filtering any flag-only options
         actions = dict(filter(lambda x: x is not True, actions))
 
-    version = mds.Version(kwargs.pop("version", common.default_version))
+    version = mds.Version(kwargs.pop("version", common.DEFAULT_VERSION))
     stage_first = int(kwargs.pop("stage_first", True))
 
     db_config = dict(stage_first=stage_first, version=version, **env())
